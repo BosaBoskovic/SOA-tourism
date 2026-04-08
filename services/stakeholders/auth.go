@@ -32,6 +32,7 @@ type AccountResponse struct {
 	Username  string    `json:"username"`
 	Email     string    `json:"email"`
 	Role      string    `json:"role"`
+	IsBlocked bool      `json:"isBlocked"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -39,6 +40,7 @@ type accountRecord struct {
 	Username     string
 	Email        string
 	Role         string
+	IsBlocked    bool
 	PasswordHash string
 }
 
@@ -65,6 +67,11 @@ func NewAuthService(driver neo4j.DriverWithContext, database string, secret []by
 func (s *AuthService) RegisterRoutes(r *gin.Engine) {
 	r.POST("/stakeholders/register", s.register)
 	r.POST("/stakeholders/login", s.login)
+
+	admin := r.Group("/stakeholders")
+    admin.Use(s.adminOnlyMiddleware())
+    admin.GET("/accounts", s.getAllAccounts)
+    admin.PATCH("/accounts/:username/block", s.blockAccount)
 }
 
 func (s *AuthService) EnsureUniqueConstraints(ctx context.Context) error {
@@ -189,6 +196,7 @@ func (s *AuthService) register(c *gin.Context) {
 				passwordHash: $passwordHash,
 				email: $email,
 				role: $role,
+				isBlocked: false,
 				createdAt: datetime()
 			})`,
 			map[string]any{
@@ -217,6 +225,7 @@ func (s *AuthService) register(c *gin.Context) {
 			Username:  req.Username,
 			Email:     req.Email,
 			Role:      role,
+			IsBlocked: false,
 			CreatedAt: time.Now().UTC(),
 		},
 	})
@@ -241,7 +250,7 @@ func (s *AuthService) login(c *gin.Context) {
 		res, runErr := tx.Run(ctx,
 			`MATCH (u:Account)
 			 WHERE toLower(u.username) = toLower($identity) OR toLower(u.email) = toLower($identity)
-			 RETURN u.username AS username, u.email AS email, u.role AS role, u.passwordHash AS passwordHash
+			 RETURN u.username AS username, u.email AS email, u.role AS role, u.isBlocked AS isBlocked, u.passwordHash AS passwordHash
 			 LIMIT 1`,
 			map[string]any{"identity": req.UsernameOrEmail},
 		)
@@ -261,12 +270,14 @@ func (s *AuthService) login(c *gin.Context) {
 		username, _ := record.Get("username")
 		email, _ := record.Get("email")
 		role, _ := record.Get("role")
+		isBlocked, _ := record.Get("isBlocked")
 		passwordHash, _ := record.Get("passwordHash")
 
 		return accountRecord{
 			Username:     username.(string),
 			Email:        email.(string),
 			Role:         role.(string),
+			IsBlocked:    isBlocked.(bool),
 			PasswordHash: passwordHash.(string),
 		}, nil
 	})
@@ -281,6 +292,12 @@ func (s *AuthService) login(c *gin.Context) {
 	}
 
 	account := result.(accountRecord)
+
+	if account.IsBlocked {
+    	c.JSON(http.StatusForbidden, gin.H{"error": "Nalog je blokiran"})
+    	return
+    }
+
 	if compareErr := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(req.Password)); compareErr != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Pogresni kredencijali"})
 		return
@@ -303,5 +320,181 @@ func (s *AuthService) login(c *gin.Context) {
 			"email":    account.Email,
 			"role":     account.Role,
 		},
+	})
+}
+
+func (s *AuthService) adminOnlyMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Nedostaje Authorization header"})
+			c.Abort()
+			return
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Neispravan Authorization header"})
+			c.Abort()
+			return
+		}
+
+		tokenString := strings.TrimSpace(parts[1])
+
+		token, err := jwt.ParseWithClaims(tokenString, &AccessClaims{}, func(token *jwt.Token) (any, error) {
+			return s.secret, nil
+		})
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Neispravan ili istekao token"})
+			c.Abort()
+			return
+		}
+
+		claims, ok := token.Claims.(*AccessClaims)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Neispravni token claims"})
+			c.Abort()
+			return
+		}
+
+		if claims.Role != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Samo admin ima pristup"})
+			c.Abort()
+			return
+		}
+
+		c.Set("claims", claims)
+		c.Next()
+	}
+}
+
+
+func (s *AuthService) getAllAccounts(c *gin.Context) {
+	ctx := c.Request.Context()
+	session := s.driver.NewSession(ctx, neo4j.SessionConfig{DatabaseName: s.database})
+	defer func() {
+		if closeErr := session.Close(ctx); closeErr != nil {
+			log.Printf("cannot close neo4j session: %v", closeErr)
+		}
+	}()
+
+	result, err := session.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		res, runErr := tx.Run(ctx,
+			`MATCH (u:Account)
+			 RETURN u.username AS username,
+			        u.email AS email,
+			        u.role AS role,
+			        coalesce(u.isBlocked, false) AS isBlocked,
+			        u.createdAt AS createdAt
+			 ORDER BY u.createdAt DESC`,
+			nil,
+		)
+		if runErr != nil {
+			return nil, runErr
+		}
+
+		records, collectErr := res.Collect(ctx)
+		if collectErr != nil {
+			return nil, collectErr
+		}
+
+		accounts := make([]gin.H, 0, len(records))
+		for _, record := range records {
+			username, _ := record.Get("username")
+			email, _ := record.Get("email")
+			role, _ := record.Get("role")
+			isBlocked, _ := record.Get("isBlocked")
+			createdAt, _ := record.Get("createdAt")
+
+			accounts = append(accounts, gin.H{
+				"username":  username,
+				"email":     email,
+				"role":      role,
+				"isBlocked": isBlocked,
+				"createdAt": createdAt,
+			})
+		}
+
+		return accounts, nil
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri citanju naloga"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"accounts": result,
+	})
+}
+
+func (s *AuthService) blockAccount(c *gin.Context) {
+	username := strings.TrimSpace(c.Param("username"))
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username je obavezan"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	session := s.driver.NewSession(ctx, neo4j.SessionConfig{DatabaseName: s.database})
+	defer func() {
+		if closeErr := session.Close(ctx); closeErr != nil {
+			log.Printf("cannot close neo4j session: %v", closeErr)
+		}
+	}()
+
+	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		res, runErr := tx.Run(ctx,
+			`MATCH (u:Account)
+			 WHERE toLower(u.username) = toLower($username)
+			 RETURN u.role AS role
+			 LIMIT 1`,
+			map[string]any{"username": username},
+		)
+		if runErr != nil {
+			return nil, runErr
+		}
+
+		records, collectErr := res.Collect(ctx)
+		if collectErr != nil {
+			return nil, collectErr
+		}
+		if len(records) == 0 {
+			return nil, errors.New("account_not_found")
+		}
+
+		role, _ := records[0].Get("role")
+		if role.(string) == "admin" {
+			return nil, errors.New("cannot_block_admin")
+		}
+
+		_, runErr = tx.Run(ctx,
+			`MATCH (u:Account)
+			 WHERE toLower(u.username) = toLower($username)
+			 SET u.isBlocked = true`,
+			map[string]any{"username": username},
+		)
+		if runErr != nil {
+			return nil, runErr
+		}
+
+		return nil, nil
+	})
+
+	if err != nil {
+		switch err.Error() {
+		case "account_not_found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "Nalog nije pronadjen"})
+			return
+		case "cannot_block_admin":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Admin nalog ne moze biti blokiran"})
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri blokiranju naloga"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Nalog je uspesno blokiran",
 	})
 }
