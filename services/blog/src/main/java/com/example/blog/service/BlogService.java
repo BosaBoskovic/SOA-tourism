@@ -71,4 +71,16 @@ public class BlogService{
         comment.setLastModifiedAt(LocalDateTime.now());
         return blogRepository.save(blog);
     }
+
+    public Blog likeBlog(String blogId, String username) {
+        Blog blog = blogRepository.findById(blogId).orElseThrow(() -> new RuntimeException("Blog nije pronadjen"));
+
+        if (blog.getLikes().contains(username)) {
+            blog.getLikes().remove(username);
+        } else {
+            blog.getLikes().add(username);
+        }
+
+        return blogRepository.save(blog);
+    }
 }
