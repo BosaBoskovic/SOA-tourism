@@ -38,9 +38,35 @@ services:
     networks:
       - soa-network
 
+  mongodb-blog:
+    image: mongo:7
+    container_name: soa-mongodb-blog
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_blog_data:/data/db
+    networks:
+      - soa-network
+
+  blog:
+    build:
+      context: ./services/blog
+      dockerfile: Dockerfile
+    container_name: soa-blog
+    ports:
+      - "8082:8082"
+    environment:
+      MONGODB_URI: mongodb://mongodb-blog:27017/blogdb
+      MONGODB_DATABASE: blogdb
+    depends_on:
+      - mongodb-blog
+    networks:
+      - soa-network
+
 volumes:
   neo4j_data:
   neo4j_import:
+  mongodb_blog_data:
 
 networks:
   soa-network:
