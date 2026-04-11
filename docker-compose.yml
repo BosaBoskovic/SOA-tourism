@@ -47,6 +47,18 @@ services:
       - mongodb_blog_data:/data/db
     networks:
       - soa-network
+  mongo-express:
+    image: mongo-express
+    container_name: soa-mongo-express
+    ports:
+      - "8083:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: soa-mongodb-blog
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongodb-blog
+    networks:
+      - soa-network
 
   blog:
     build:
