@@ -56,7 +56,7 @@ services:
     ports:
       - "8082:8082"
     environment:
-      MONGODB_URI: mongodb://mongodb-blog:27017/blogdb
+      MONGODB_URI: mongodb://soa-mongodb-blog:27017/blogdb
       MONGODB_DATABASE: blogdb
     depends_on:
       - mongodb-blog
