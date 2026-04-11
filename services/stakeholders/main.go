@@ -48,9 +48,14 @@ func main() {
 		log.Fatalf("cannot connect to neo4j: %v", err)
 	}
 
+	profileRepo := repo.NewProfileRepo(driver)
+
 	accountRepo := repo.NewAccountRepo(driver, neo4jDatabase)
-	authService := service.NewAuthService(accountRepo, []byte(jwtSecretRaw))
+	authService := service.NewAuthService(accountRepo, profileRepo, []byte(jwtSecretRaw))
 	authHandler := handler.NewAuthHandler(authService)
+
+	profileService := service.NewProfileService(profileRepo)
+	profileHandler := handler.NewProfileHandler(profileService, authService)
 
 	if err = authService.EnsureUniqueConstraints(ctx); err != nil {
 		log.Fatalf("cannot create neo4j constraints: %v", err)
@@ -61,6 +66,7 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "Stakeholders service radi"})
 	})
 	authHandler.RegisterRoutes(r)
+	profileHandler.RegisterRoutes(r)
 
 	r.Run(":8081")
 }

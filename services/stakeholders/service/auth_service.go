@@ -22,12 +22,13 @@ type AccessClaims struct {
 }
 
 type AuthService struct {
-	repo   *repo.AccountRepo
-	secret []byte
+	repo        *repo.AccountRepo
+	profileRepo *repo.ProfileRepo
+	secret      []byte
 }
 
-func NewAuthService(r *repo.AccountRepo, secret []byte) *AuthService {
-	return &AuthService{repo: r, secret: secret}
+func NewAuthService(r *repo.AccountRepo, profileRepo *repo.ProfileRepo, secret []byte) *AuthService {
+	return &AuthService{repo: r, profileRepo: profileRepo, secret: secret}
 }
 
 func (s *AuthService) EnsureUniqueConstraints(ctx context.Context) error {
@@ -60,6 +61,11 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 		PasswordHash: string(hash),
 	}
 	if err = s.repo.CreateAccount(ctx, acc); err != nil {
+		return nil, err
+	}
+
+	emptyProfile := model.Profile{Username: req.Username}
+	if err = s.profileRepo.CreateProfile(ctx, emptyProfile); err != nil {
 		return nil, err
 	}
 
@@ -148,4 +154,18 @@ func normalizeRegistrableRole(role string) (string, error) {
 	default:
 		return "", errors.New("role must be guide or tourist")
 	}
+}
+
+func (s *AuthService) ParseClaims(tokenString string) (*AccessClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &AccessClaims{}, func(t *jwt.Token) (any, error) {
+		return s.secret, nil
+	})
+	if err != nil || !token.Valid {
+		return nil, errors.New("invalid_token")
+	}
+	claims, ok := token.Claims.(*AccessClaims)
+	if !ok {
+		return nil, errors.New("invalid_claims")
+	}
+	return claims, nil
 }
