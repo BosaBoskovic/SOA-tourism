@@ -9,19 +9,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+
+	"stakeholders/handler"
+	"stakeholders/repo"
+	"stakeholders/service"
 )
 
 func getEnvOrDefault(key, fallback string) string {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		return fallback
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
 	}
-
-	return value
+	return fallback
 }
 
 func main() {
 	ctx := context.Background()
+
 	neo4jURI := getEnvOrDefault("NEO4J_URI", "neo4j://localhost:7687")
 	neo4jUser := getEnvOrDefault("NEO4J_USER", "neo4j")
 	neo4jPassword := getEnvOrDefault("NEO4J_PASSWORD", "password")
@@ -30,15 +33,14 @@ func main() {
 	if jwtSecretRaw == "change-this-secret-in-production" {
 		log.Println("warning: JWT_SECRET is using a default value; set JWT_SECRET in production")
 	}
-	jwtSecret := []byte(jwtSecretRaw)
 
 	driver, err := neo4j.NewDriverWithContext(neo4jURI, neo4j.BasicAuth(neo4jUser, neo4jPassword, ""))
 	if err != nil {
 		log.Fatalf("cannot create neo4j driver: %v", err)
 	}
 	defer func() {
-		if closeErr := driver.Close(ctx); closeErr != nil {
-			log.Printf("cannot close neo4j driver: %v", closeErr)
+		if err := driver.Close(ctx); err != nil {
+			log.Printf("cannot close neo4j driver: %v", err)
 		}
 	}()
 
@@ -46,21 +48,25 @@ func main() {
 		log.Fatalf("cannot connect to neo4j: %v", err)
 	}
 
-	authService := NewAuthService(driver, neo4jDatabase, jwtSecret)
+	profileRepo := repo.NewProfileRepo(driver)
+
+	accountRepo := repo.NewAccountRepo(driver, neo4jDatabase)
+	authService := service.NewAuthService(accountRepo, profileRepo, []byte(jwtSecretRaw))
+	authHandler := handler.NewAuthHandler(authService)
+
+	profileService := service.NewProfileService(profileRepo)
+	profileHandler := handler.NewProfileHandler(profileService, authService)
+
 	if err = authService.EnsureUniqueConstraints(ctx); err != nil {
 		log.Fatalf("cannot create neo4j constraints: %v", err)
 	}
 
-
 	r := gin.Default()
-
 	r.GET("/stakeholders", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Stakeholders service radi",
-		})
+		c.JSON(http.StatusOK, gin.H{"message": "Stakeholders service radi"})
 	})
-
-	authService.RegisterRoutes(r)
+	authHandler.RegisterRoutes(r)
+	profileHandler.RegisterRoutes(r)
 
 	r.Run(":8081")
 }
