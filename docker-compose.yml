@@ -45,6 +45,11 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_blog_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - soa-network
   mongo-express:
@@ -71,7 +76,8 @@ services:
       MONGODB_URI: mongodb://soa-mongodb-blog:27017/blogdb
       MONGODB_DATABASE: blogdb
     depends_on:
-      - mongodb-blog
+      mongodb-blog:
+        condition: service_healthy
     networks:
       - soa-network
 
