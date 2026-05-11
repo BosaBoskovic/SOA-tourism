@@ -1,5 +1,8 @@
 package com.example.blog.service;
 
+import com.example.blog.client.FollowerClient;
+import com.example.blog.exception.BlogAccessDeniedException;
+import com.example.blog.exception.BlogNotFoundException;
 import com.example.blog.model.Blog;
 import com.example.blog.model.Comment;
 import com.example.blog.repository.BlogRepository;
@@ -12,12 +15,14 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class BlogService{
 
     private final BlogRepository blogRepository;
+    private final FollowerClient followerClient;
 
     private final Parser markdownParser = Parser.builder().build();
     private final HtmlRenderer htmlRenderer = HtmlRenderer.builder().build();
@@ -32,12 +37,22 @@ public class BlogService{
         return blogRepository.save(blog);
     }
 
-    public List<Blog> getAllBlogs(){
-        return blogRepository.findAll();
+    public List<Blog> getAllBlogsForUser(String username){
+        Set<String> visibleAuthors = followerClient.getVisibleAuthors(username);
+        return blogRepository.findAll().stream()
+                .filter(blog -> visibleAuthors.contains(blog.getAuthorUsername()))
+                .toList();
     }
 
-    public Optional<Blog> getBlogById(String id){
-        return blogRepository.findById(id);
+    public Blog getBlogByIdForUser(String id, String username){
+        Blog blog = blogRepository.findById(id)
+                .orElseThrow(() -> new BlogNotFoundException("Blog nije pronadjen"));
+
+        if (!followerClient.isFollowing(username, blog.getAuthorUsername())) {
+            throw new BlogAccessDeniedException("Pristup blogu nije dozvoljen");
+        }
+
+        return blog;
     }
 
     //pomocna metoda - konvertuje markdown u HTML
@@ -48,7 +63,12 @@ public class BlogService{
     }
 
     public Blog addComment(String blogId, String authorUsername, String text){
-        Blog blog = blogRepository.findById(blogId).orElseThrow(()-> new RuntimeException("Blog nije pronadjen"));
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new BlogNotFoundException("Blog nije pronadjen"));
+
+        if (!followerClient.isFollowing(authorUsername, blog.getAuthorUsername())) {
+            throw new BlogAccessDeniedException("Morate zapratiti autora da biste ostavili komentar");
+        }
 
         Comment comment = new Comment();
         comment.setAuthorUsername(authorUsername);
@@ -59,7 +79,8 @@ public class BlogService{
     }
 
     public Blog editComment(String blogId, String commentId, String username, String newText){
-        Blog blog = blogRepository.findById(blogId).orElseThrow(()-> new RuntimeException("Blog nije pronadjen"));
+        Blog blog = blogRepository.findById(blogId)
+            .orElseThrow(() -> new BlogNotFoundException("Blog nije pronadjen"));
 
         Comment comment = blog.getComments().stream().filter(c -> c.getId().equals(commentId)).findFirst().orElseThrow(()-> new RuntimeException("Komentar nije pronadjen"));
 
