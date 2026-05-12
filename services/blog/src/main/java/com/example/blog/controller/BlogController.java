@@ -1,5 +1,7 @@
 package com.example.blog.controller;
 
+import com.example.blog.exception.BlogAccessDeniedException;
+import com.example.blog.exception.BlogNotFoundException;
 import com.example.blog.model.Blog;
 import com.example.blog.service.BlogService;
 import lombok.RequiredArgsConstructor;
@@ -32,8 +34,8 @@ public class BlogController{
 
     //dobavljanje svih blogova
     @GetMapping
-    public ResponseEntity<List<Map<String, Object>>> getAllBlogs(@RequestHeader(value = "X-Username", required = false) String username){
-        List<Map<String, Object>> blogs = blogService.getAllBlogs().stream()
+    public ResponseEntity<List<Map<String, Object>>> getAllBlogs(@RequestHeader("X-Username") String username){
+        List<Map<String, Object>> blogs = blogService.getAllBlogsForUser(username).stream()
                 .map(blog -> toBlogResponse(blog, username))
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(blogs);
@@ -41,14 +43,18 @@ public class BlogController{
 
     //dobavljanje jednog bloga (sa rendered markdown)
     @GetMapping("/{id}")
-    public ResponseEntity<?> getBlogById(@PathVariable String id, @RequestHeader(value = "X-Username", required = false) String username){
-        return blogService.getBlogById(id).map(blog -> {
+    public ResponseEntity<?> getBlogById(@PathVariable String id, @RequestHeader("X-Username") String username){
+        try {
+            Blog blog = blogService.getBlogByIdForUser(id, username);
             String renderedHtml = blogService.renderMarkdown(blog.getDescriptionMarkdown());
             Map<String, Object> response = toBlogResponse(blog, username);
             response.put("descriptionHtml", renderedHtml);
             return ResponseEntity.ok(response);
-        })
-        .orElse(ResponseEntity.notFound().build());
+        } catch (BlogNotFoundException ex) {
+            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
+        } catch (BlogAccessDeniedException ex) {
+            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @PostMapping("/{id}/comments")
@@ -56,8 +62,14 @@ public class BlogController{
             @PathVariable String id,
             @RequestBody Map<String, String> body,
             @RequestHeader("X-Username") String username) {
-        Blog blog = blogService.addComment(id, username, body.get("text"));
-        return ResponseEntity.status(201).body(toBlogResponse(blog, username));
+        try {
+            Blog blog = blogService.addComment(id, username, body.get("text"));
+            return ResponseEntity.status(201).body(toBlogResponse(blog, username));
+        } catch (BlogNotFoundException ex) {
+            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
+        } catch (BlogAccessDeniedException ex) {
+            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @PutMapping("/{blogId}/comments/{commentId}")
