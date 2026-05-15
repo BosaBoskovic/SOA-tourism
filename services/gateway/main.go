@@ -74,9 +74,24 @@ func main() {
 	mux.HandleFunc("/keypoints/", func(w http.ResponseWriter, r *http.Request) {
 		toursProxy.ServeHTTP(w, r)
 	})
+    mux.HandleFunc("/reviews", func(w http.ResponseWriter, r *http.Request) {
+    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+    	toursProxy.ServeHTTP(w, r)
+    })
+
 	mux.HandleFunc("/reviews/", func(w http.ResponseWriter, r *http.Request) {
 		toursProxy.ServeHTTP(w, r)
 	})
+
+    mux.HandleFunc("/tourist-position", func(w http.ResponseWriter, r *http.Request) {
+    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+    	toursProxy.ServeHTTP(w, r)
+    })
+
+    mux.HandleFunc("/tourist-position/", func(w http.ResponseWriter, r *http.Request) {
+    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+    	toursProxy.ServeHTTP(w, r)
+    })
 
 	// Fallback - nepoznata ruta
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

@@ -53,16 +53,19 @@ func main() {
 	tourRepo := repository.NewTourRepository(db)
 	keyPointRepo := repository.NewKeyPointRepository(db)
 	reviewRepo := repository.NewReviewRepository(db)
+	touristPositionRepo := repository.NewTouristPositionRepository(db)
 
 	// ── Services ──────────────────────────────────────────────
 	tourService := service.NewTourService(tourRepo)
 	keyPointService := service.NewKeyPointService(keyPointRepo, tourRepo)
 	reviewService := service.NewReviewService(reviewRepo, tourRepo)
+	touristPositionService := service.NewTouristPositionService(touristPositionRepo)
 
 	// ── Handlers ──────────────────────────────────────────────
 	tourHandler := handler.NewTourHandler(tourService)
 	keyPointHandler := handler.NewKeyPointHandler(keyPointService)
 	reviewHandler := handler.NewReviewHandler(reviewService)
+	touristPositionHandler := handler.NewTouristPositionHandler(touristPositionService)
 
 	// ── Router ────────────────────────────────────────────────
 	r := mux.NewRouter()
@@ -86,6 +89,10 @@ func main() {
 	r.HandleFunc("/reviews/tour/{tourId}", reviewHandler.GetByTour).Methods(http.MethodGet)
 	r.HandleFunc("/reviews/{id}", reviewHandler.GetByID).Methods(http.MethodGet)
 	r.HandleFunc("/reviews/{id}", reviewHandler.Delete).Methods(http.MethodDelete)
+
+	// Tourist Position Simulator
+    r.HandleFunc("/tourist-position", touristPositionHandler.Update).Methods(http.MethodPut)
+    r.HandleFunc("/tourist-position/{touristId}", touristPositionHandler.GetByTouristID).Methods(http.MethodGet)
 
 	port := os.Getenv("PORT")
 	if port == "" {
