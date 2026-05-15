@@ -2,7 +2,6 @@
   <div class="login-card">
     <div class="login-header">
       <h1>Prijava</h1>
-      <p>Uđite u svoju aplikaciju</p>
     </div>
 
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
@@ -37,7 +36,7 @@
         />
         <div *ngIf="submitted && f['password']?.invalid" class="error-text">
           <small *ngIf="f['password']?.hasError('required')">Lozinka je obavezna</small>
-          <small *ngIf="f['password']?.hasError('minlength')">Lozinka mora imati najmanje 6 znakova</small>
+          <small *ngIf="f['password']?.hasError('minlength')">Lozinka mora imati najmanje 8 karaktera</small>
         </div>
       </div>
 
@@ -51,7 +50,7 @@
     </form>
 
     <div class="login-footer">
-      <p>Nemate račun? <a routerLink="/register">Registrirajte se</a></p>
+      <p>Nemate nalog? <a routerLink="/register">Registrujte se</a></p>
     </div>
   </div>
 </div>

@@ -2,7 +2,6 @@
   <div class="register-card">
     <div class="register-header">
       <h1>Registracija</h1>
-      <p>Kreirajte novi račun</p>
     </div>
 
     <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
@@ -19,7 +18,7 @@
             class="form-control"
             formControlName="username"
             [class.is-invalid]="submitted && f['username']?.invalid"
-            placeholder="vas.korisnik"
+            placeholder="korisnicko.ime"
           />
           <div *ngIf="submitted && f['username']?.invalid" class="error-text">
             <small *ngIf="f['username']?.hasError('required')">Korisničko ime je obavezno</small>
@@ -105,7 +104,7 @@
     </form>
 
     <div class="register-footer">
-      <p>Već imate račun? <a routerLink="/login">Prijavite se</a></p>
+      <p>Već imate nalog? <a routerLink="/login">Prijavite se</a></p>
     </div>
   </div>
 </div>
