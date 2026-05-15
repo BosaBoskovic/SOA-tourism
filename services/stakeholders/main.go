@@ -15,11 +15,30 @@ import (
 	"stakeholders/service"
 )
 
+import "golang.org/x/crypto/bcrypt"
+import "stakeholders/model"
+
 func getEnvOrDefault(key, fallback string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 		return v
 	}
 	return fallback
+}
+
+func seedAdmin(accountRepo *repo.AccountRepo) {
+	ctx := context.Background()
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+
+	admin := model.Account{
+		Username:     "admin",
+		Email:        "admin@gmail.com",
+		Role:         "admin",
+		IsBlocked:    false,
+		PasswordHash: string(hash),
+	}
+
+	_ = accountRepo.CreateAccount(ctx, admin)
 }
 
 func main() {
@@ -51,6 +70,7 @@ func main() {
 	profileRepo := repo.NewProfileRepo(driver)
 
 	accountRepo := repo.NewAccountRepo(driver, neo4jDatabase)
+	seedAdmin(accountRepo)
 	authService := service.NewAuthService(accountRepo, profileRepo, []byte(jwtSecretRaw))
 	authHandler := handler.NewAuthHandler(authService)
 
