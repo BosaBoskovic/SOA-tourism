@@ -104,6 +104,21 @@ services:
     networks:
       - soa-network
 
+  mongodb-tours:
+    image: mongo:7
+    container_name: soa-mongodb-tours
+    ports:
+      - "27018:27017"         
+    volumes:
+      - mongodb_tours_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soa-network
+
   tours:
     build:
       context: ./services/tours
@@ -111,6 +126,12 @@ services:
     container_name: soa-tours
     ports:
       - "8085:8085"
+    environment:
+      MONGODB_URI: soa-mongodb-tours:27017  
+      PORT: 8085
+    depends_on:
+      mongodb-tours:
+        condition: service_healthy           
     networks:
       - soa-network
 
@@ -141,6 +162,7 @@ volumes:
   neo4j_data:
   neo4j_import:
   mongodb_blog_data:
+  mongodb_tours_data:
 
 networks:
   soa-network:
