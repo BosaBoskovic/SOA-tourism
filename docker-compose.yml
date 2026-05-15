@@ -52,6 +52,7 @@ services:
       retries: 5
     networks:
       - soa-network
+
   mongo-express:
     image: mongo-express
     container_name: soa-mongo-express
@@ -100,6 +101,39 @@ services:
     depends_on:
       neo4j:
         condition: service_healthy
+    networks:
+      - soa-network
+
+  tours:
+    build:
+      context: ./services/tours
+      dockerfile: Dockerfile
+    container_name: soa-tours
+    ports:
+      - "8085:8085"
+    networks:
+      - soa-network
+
+  # API GATEWAY - jedina ulazna tačka za sve klijente
+  # Svi zahtjevi idu na :8080, gateway rutira dalje
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    container_name: soa-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      STAKEHOLDERS_URL: http://soa-stakeholders:8081
+      BLOG_URL: http://soa-blog:8082
+      FOLLOWERS_URL: http://soa-followers:8084
+      TOURS_URL: http://soa-tours:8085
+    depends_on:
+      - stakeholders
+      - blog
+      - followers
+      - tours
     networks:
       - soa-network
 
