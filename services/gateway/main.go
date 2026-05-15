@@ -27,15 +27,15 @@ func newReverseProxy(targetURL string) *httputil.ReverseProxy {
 func main() {
 	// URL-ovi servisa (čitaju se iz environment varijabli)
 	stakeholdersURL := getEnvOrDefault("STAKEHOLDERS_URL", "http://localhost:8081")
-	blogURL         := getEnvOrDefault("BLOG_URL",         "http://localhost:8082")
-	followersURL    := getEnvOrDefault("FOLLOWERS_URL",    "http://localhost:8084")
-	toursURL        := getEnvOrDefault("TOURS_URL",        "http://localhost:8085")
+	blogURL := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
+	followersURL := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
+	toursURL := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
 
 	// Kreiramo reverse proxy za svaki servis
 	stakeholdersProxy := newReverseProxy(stakeholdersURL)
-	blogProxy         := newReverseProxy(blogURL)
-	followersProxy    := newReverseProxy(followersURL)
-	toursProxy        := newReverseProxy(toursURL)
+	blogProxy := newReverseProxy(blogURL)
+	followersProxy := newReverseProxy(followersURL)
+	toursProxy := newReverseProxy(toursURL)
 
 	mux := http.NewServeMux()
 
@@ -69,6 +69,12 @@ func main() {
 	// --- Tours servis ---
 	mux.HandleFunc("/tours/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+		toursProxy.ServeHTTP(w, r)
+	})
+	mux.HandleFunc("/keypoints/", func(w http.ResponseWriter, r *http.Request) {
+		toursProxy.ServeHTTP(w, r)
+	})
+	mux.HandleFunc("/reviews/", func(w http.ResponseWriter, r *http.Request) {
 		toursProxy.ServeHTTP(w, r)
 	})
 
