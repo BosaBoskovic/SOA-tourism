@@ -9,6 +9,24 @@ import (
 	"strings"
 )
 
+// CORS middleware za omogućavanje cross-origin zahteva
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		// Odgovori na preflight zahteve
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func getEnvOrDefault(key, fallback string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 		return v
@@ -22,6 +40,13 @@ func newReverseProxy(targetURL string) *httputil.ReverseProxy {
 		log.Fatalf("Neispravna URL adresa za servis: %s, greška: %v", targetURL, err)
 	}
 	return httputil.NewSingleHostReverseProxy(target)
+}
+
+func rewritePrefix(prefix, replacement string, next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = replacement + strings.TrimPrefix(r.URL.Path, prefix)
+		next.ServeHTTP(w, r)
+	}
 }
 
 func main() {
@@ -40,19 +65,20 @@ func main() {
 	mux := http.NewServeMux()
 
 	// --- Stakeholders servis ---
-	// Registracija, login, profili, nalozi
+	// Front i backend koriste /stakeholders/* rute, pa gateway ne sme da menja prefiks.
+	mux.HandleFunc("/stakeholders/", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
+		stakeholdersProxy.ServeHTTP(w, r)
+	})
+
+	// Kompatibilnost za starije klijente koji još šalju /auth/*, /accounts/* ili /profiles/*.
 	mux.HandleFunc("/auth/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
+		log.Printf("[GATEWAY] %s %s -> stakeholders (legacy /auth)", r.Method, r.URL.Path)
+		r.URL.Path = strings.Replace(r.URL.Path, "/auth/", "/stakeholders/", 1)
 		stakeholdersProxy.ServeHTTP(w, r)
 	})
-	mux.HandleFunc("/accounts/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
-		stakeholdersProxy.ServeHTTP(w, r)
-	})
-	mux.HandleFunc("/profiles/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
-		stakeholdersProxy.ServeHTTP(w, r)
-	})
+	mux.HandleFunc("/accounts/", rewritePrefix("/accounts/", "/stakeholders/accounts/", stakeholdersProxy))
+	mux.HandleFunc("/profiles/", rewritePrefix("/profiles/", "/stakeholders/profile/", stakeholdersProxy))
 
 	// --- Blog servis ---
 	mux.HandleFunc("/blog/", func(w http.ResponseWriter, r *http.Request) {
@@ -86,12 +112,13 @@ func main() {
 
 	port := getEnvOrDefault("PORT", "8080")
 	log.Printf("API Gateway pokrenut na portu %s", port)
-	log.Printf("  /auth/*, /accounts/*, /profiles/* -> %s", stakeholdersURL)
+	log.Printf("  /stakeholders/*                  -> %s", stakeholdersURL)
+	log.Printf("  /auth/*, /accounts/*, /profiles/* -> %s (legacy compat)", stakeholdersURL)
 	log.Printf("  /blog/*                            -> %s", blogURL)
 	log.Printf("  /followers/*                       -> %s", followersURL)
 	log.Printf("  /tours/*                           -> %s", toursURL)
 
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, corsMiddleware(mux)); err != nil {
 		log.Fatalf("Gateway nije mogao da se pokrene: %v", err)
 	}
 }

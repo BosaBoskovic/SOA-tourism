@@ -1,0 +1,57 @@
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-header">
+      <h1>Prijava</h1>
+      <p>Uđite u svoju aplikaciju</p>
+    </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div *ngIf="error" class="alert alert-error">
+        {{ error }}
+      </div>
+
+      <div class="form-group">
+        <label for="usernameOrEmail">Korisničko ime ili email</label>
+        <input
+          id="usernameOrEmail"
+          type="text"
+          class="form-control"
+          formControlName="usernameOrEmail"
+          [class.is-invalid]="submitted && f['usernameOrEmail']?.invalid"
+          placeholder="korisnicko.ime ili email@example.com"
+        />
+        <div *ngIf="submitted && f['usernameOrEmail']?.invalid" class="error-text">
+          <small *ngIf="f['usernameOrEmail']?.hasError('required')">Korisničko ime ili email je obavezno</small>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Lozinka</label>
+        <input
+          id="password"
+          type="password"
+          class="form-control"
+          formControlName="password"
+          [class.is-invalid]="submitted && f['password']?.invalid"
+          placeholder="••••••••"
+        />
+        <div *ngIf="submitted && f['password']?.invalid" class="error-text">
+          <small *ngIf="f['password']?.hasError('required')">Lozinka je obavezna</small>
+          <small *ngIf="f['password']?.hasError('minlength')">Lozinka mora imati najmanje 6 znakova</small>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary btn-block"
+        [disabled]="loading"
+      >
+        {{ loading ? 'Učitavanje...' : 'Prijava' }}
+      </button>
+    </form>
+
+    <div class="login-footer">
+      <p>Nemate račun? <a routerLink="/register">Registrirajte se</a></p>
+    </div>
+  </div>
+</div>

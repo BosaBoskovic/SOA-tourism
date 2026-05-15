@@ -1,0 +1,111 @@
+<div class="register-container">
+  <div class="register-card">
+    <div class="register-header">
+      <h1>Registracija</h1>
+      <p>Kreirajte novi račun</p>
+    </div>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      <div *ngIf="error" class="alert alert-error">
+        {{ error }}
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="username">Korisničko ime</label>
+          <input
+            id="username"
+            type="text"
+            class="form-control"
+            formControlName="username"
+            [class.is-invalid]="submitted && f['username']?.invalid"
+            placeholder="vas.korisnik"
+          />
+          <div *ngIf="submitted && f['username']?.invalid" class="error-text">
+            <small *ngIf="f['username']?.hasError('required')">Korisničko ime je obavezno</small>
+            <small *ngIf="f['username']?.hasError('minlength')">Korisničko ime mora imati najmanje 3 znaka</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="role">Uloga</label>
+          <select
+            id="role"
+            class="form-control"
+            formControlName="role"
+            [class.is-invalid]="submitted && f['role']?.invalid"
+          >
+            <option value="">Izaberite ulogu</option>
+            <option value="vodic">Vodič</option>
+            <option value="turista">Turista</option>
+          </select>
+          <div *ngIf="submitted && f['role']?.invalid" class="error-text">
+            <small *ngIf="f['role']?.hasError('required')">Uloga je obavezna</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          class="form-control"
+          formControlName="email"
+          [class.is-invalid]="submitted && f['email']?.invalid"
+          placeholder="vasa@email.com"
+        />
+        <div *ngIf="submitted && f['email']?.invalid" class="error-text">
+          <small *ngIf="f['email']?.hasError('required')">Email je obavezan</small>
+          <small *ngIf="f['email']?.hasError('email')">Unesite validan email</small>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Lozinka</label>
+        <input
+          id="password"
+          type="password"
+          class="form-control"
+          formControlName="password"
+          [class.is-invalid]="submitted && f['password']?.invalid"
+          placeholder="••••••••"
+        />
+        <div *ngIf="submitted && f['password']?.invalid" class="error-text">
+          <small *ngIf="f['password']?.hasError('required')">Lozinka je obavezna</small>
+          <small *ngIf="f['password']?.hasError('minlength')">Lozinka mora imati najmanje 8 znakova</small>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Potvrdi lozinku</label>
+        <input
+          id="confirmPassword"
+          type="password"
+          class="form-control"
+          formControlName="confirmPassword"
+          [class.is-invalid]="submitted && (f['confirmPassword']?.invalid || registerForm.hasError('passwordMismatch'))"
+          placeholder="••••••••"
+        />
+        <div *ngIf="submitted && f['confirmPassword']?.invalid" class="error-text">
+          <small *ngIf="f['confirmPassword']?.hasError('required')">Potvrda lozinke je obavezna</small>
+        </div>
+        <div *ngIf="submitted && registerForm.hasError('passwordMismatch')" class="error-text">
+          <small>Lozinke se ne podudaraju</small>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary btn-block"
+        [disabled]="loading"
+      >
+        {{ loading ? 'Učitavanje...' : 'Registracija' }}
+      </button>
+    </form>
+
+    <div class="register-footer">
+      <p>Već imate račun? <a routerLink="/login">Prijavite se</a></p>
+    </div>
+  </div>
+</div>
