@@ -19,5 +19,6 @@
       </p>
       <p>Ovo je osnovni dashboard. Ovdje možete dodati više sadržaja.</p>
     </div>
+    <app-admin *ngIf="currentUser?.role === 'admin'"></app-admin>
   </div>
 </div>

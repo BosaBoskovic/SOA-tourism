@@ -1,0 +1,42 @@
+<div class="admin-card">
+  <h2>Administracija korisnika</h2>
+
+  <p *ngIf="loading && accounts.length === 0">Učitavanje naloga...</p>
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+
+  <table *ngIf="accounts.length > 0" class="accounts-table">
+    <thead>
+      <tr>
+        <th>Korisničko ime</th>
+        <th>Email</th>
+        <th>Uloga</th>
+        <th>Status</th>
+        <th>Akcija</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr *ngFor="let account of accounts">
+        <td>{{ account.username }}</td>
+        <td>{{ account.email }}</td>
+        <td>{{ account.role }}</td>
+        <td>
+          <span [class.blocked]="account.isBlocked" [class.active]="!account.isBlocked">
+            {{ account.isBlocked ? 'Blokiran' : 'Aktivan' }}
+          </span>
+        </td>
+        <td>
+          <button
+            class="btn-block"
+            [disabled]="account.role?.toLowerCase() === 'admin' || account.isBlocked"
+            (click)="blockAccount(account)"
+          >
+            Blokiraj
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p *ngIf="!loading && accounts.length === 0">Nema naloga za prikaz.</p>
+</div>
