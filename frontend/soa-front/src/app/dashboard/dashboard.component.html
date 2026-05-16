@@ -43,6 +43,10 @@
             Pretraži ture
           </a>
 
+          <a routerLink="/position-simulator" *ngIf="currentUser?.role === 'tourist'">
+        Trenutna lokacija
+    </a>
+
           <a
             *ngIf="currentUser.role === 'admin'"
             (click)="menuOpen = false"
@@ -87,6 +91,8 @@
           <h3>Dashboard</h3>
           <p>Aktivan nalog</p>
         </div>
+
+
 
         <div class="floating-card card-one">🌍 Tours</div>
         <div class="floating-card card-two">📍 Points</div>

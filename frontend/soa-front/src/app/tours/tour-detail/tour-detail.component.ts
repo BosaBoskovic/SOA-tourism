@@ -25,7 +25,10 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   private map: any = null;
   private L: any = null;
   private tempMarker: any = null;
+  private keyPointMarkers: { keyPointId: string; marker: any }[] = [];
+  private routePolyline: any = null;
   selectedLatLng: { lat: number; lng: number } | null = null;
+  editingKeyPoint: KeyPoint | null = null;
 
   kpForm: FormGroup;
   kpLoading = false;
@@ -150,13 +153,52 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderKeyPointMarkers(): void {
-    if (!this.map || !this.L) return;
-    this.keyPoints.forEach((kp) => {
-      this.L.marker([kp.latitude, kp.longitude])
-        .addTo(this.map)
-        .bindPopup(`<b>${kp.name}</b><br>${kp.description}`);
-    });
+  if (!this.map || !this.L) return;
+
+  this.keyPointMarkers.forEach(item => {
+    this.map.removeLayer(item.marker);
+  });
+  this.keyPointMarkers = [];
+
+  if (this.routePolyline) {
+    this.map.removeLayer(this.routePolyline);
+    this.routePolyline = null;
   }
+
+  const sortedKeyPoints = [...this.keyPoints].sort((a, b) => a.order - b.order);
+
+  sortedKeyPoints.forEach((kp) => {
+    const marker = this.L.marker([kp.latitude, kp.longitude])
+      .addTo(this.map)
+      .bindPopup(`<b>${kp.order}. ${kp.name}</b><br>${kp.description}`);
+
+    if (kp.id) {
+      this.keyPointMarkers.push({
+        keyPointId: kp.id,
+        marker: marker
+      });
+    }
+  });
+
+  if (sortedKeyPoints.length >= 2) {
+    const routeCoordinates = sortedKeyPoints.map(kp => [kp.latitude, kp.longitude]);
+
+    this.routePolyline = this.L.polyline(routeCoordinates, {
+      color: '#2563eb',
+      weight: 5,
+      opacity: 0.85
+    }).addTo(this.map);
+
+    this.map.fitBounds(this.routePolyline.getBounds(), {
+      padding: [40, 40]
+    });
+  } else if (sortedKeyPoints.length === 1) {
+    this.map.setView(
+      [sortedKeyPoints[0].latitude, sortedKeyPoints[0].longitude],
+      13
+    );
+  }
+}
 
   loadKeyPoints(tourId: string): void {
   this.tourService.getKeyPointsByTour(tourId).subscribe({
@@ -213,43 +255,170 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   reader.readAsDataURL(file);
 }
 
-  addKeyPoint(): void {
-    if (!this.selectedLatLng || this.kpForm.invalid) {
-      this.kpError = 'Izaberite lokaciju na mapi i popunite naziv.';
-      return;
-    }
-    this.kpLoading = true;
-    this.kpError = '';
+startEditKeyPoint(kp: KeyPoint): void {
+  this.editingKeyPoint = kp;
 
-    this.tourService.createKeyPoint({
-      tourId: this.tour!.id,
-      name: this.kpForm.value.name,
-      description: this.kpForm.value.description,
-      latitude: this.selectedLatLng.lat,
-      longitude: this.selectedLatLng.lng,
-      imageUrl: this.kpForm.value.imageUrl,
-      order: this.keyPoints.length + 1
-    }).subscribe({
-      next: (kp) => {
-        this.keyPoints.push(kp);
-        if (this.map && this.L) {
-          this.L.marker([kp.latitude, kp.longitude]).addTo(this.map)
-            .bindPopup(`<b>${kp.name}</b>`);
-        }
-        this.kpForm.reset();
-        this.selectedLatLng = null;
-        if (this.tempMarker) { this.map.removeLayer(this.tempMarker); this.tempMarker = null; }
-        this.kpLoading = false;
-      },
-      error: () => { this.kpError = 'Greška pri dodavanju ključne tačke.'; this.kpLoading = false; }
-    });
+  this.kpForm.patchValue({
+    name: kp.name,
+    description: kp.description,
+    imageUrl: kp.imageUrl
+  });
+
+  this.selectedLatLng = {
+    lat: kp.latitude,
+    lng: kp.longitude
+  };
+
+  if (this.tempMarker && this.map) {
+    this.map.removeLayer(this.tempMarker);
   }
+
+  if (this.map && this.L) {
+    this.tempMarker = this.L.marker([kp.latitude, kp.longitude])
+      .addTo(this.map)
+      .bindPopup('Nova lokacija za izmenu')
+      .openPopup();
+  }
+
+  this.cdr.detectChanges();
+}
+
+cancelEditKeyPoint(): void {
+  this.editingKeyPoint = null;
+  this.kpForm.reset();
+  this.selectedLatLng = null;
+
+  if (this.tempMarker && this.map) {
+    this.map.removeLayer(this.tempMarker);
+    this.tempMarker = null;
+  }
+
+  this.cdr.detectChanges();
+}
+
+  addKeyPoint(): void {
+  if (!this.selectedLatLng || this.kpForm.invalid) {
+    this.kpError = 'Izaberite lokaciju na mapi i popunite naziv.';
+    return;
+  }
+
+  if (this.editingKeyPoint) {
+    this.updateKeyPoint();
+    return;
+  }
+
+  this.kpLoading = true;
+  this.kpError = '';
+
+  this.tourService.createKeyPoint({
+    tourId: this.tour!.id,
+    name: this.kpForm.value.name,
+    description: this.kpForm.value.description,
+    latitude: this.selectedLatLng.lat,
+    longitude: this.selectedLatLng.lng,
+    imageUrl: this.kpForm.value.imageUrl,
+    order: this.keyPoints.length + 1
+  }).subscribe({
+    next: (kp) => {
+      this.keyPoints.push(kp);
+      this.renderKeyPointMarkers();
+
+      if (this.map && this.L) {
+        const marker = this.L.marker([kp.latitude, kp.longitude])
+          .addTo(this.map)
+          .bindPopup(`<b>${kp.name}</b>`);
+
+        if (kp.id) {
+          this.keyPointMarkers.push({
+            keyPointId: kp.id,
+            marker: marker
+          });
+        }
+      }
+
+      this.kpForm.reset();
+      this.selectedLatLng = null;
+
+      if (this.tempMarker) {
+        this.map.removeLayer(this.tempMarker);
+        this.tempMarker = null;
+      }
+
+      this.kpLoading = false;
+      this.cdr.detectChanges();
+    },
+    error: () => {
+      this.kpError = 'Greška pri dodavanju ključne tačke.';
+      this.kpLoading = false;
+    }
+  });
+}
+
+updateKeyPoint(): void {
+  if (!this.editingKeyPoint || !this.selectedLatLng) return;
+
+  this.kpLoading = true;
+  this.kpError = '';
+
+  const updatedKeyPoint = {
+    tourId: this.tour!.id,
+    name: this.kpForm.value.name,
+    description: this.kpForm.value.description,
+    latitude: this.selectedLatLng.lat,
+    longitude: this.selectedLatLng.lng,
+    imageUrl: this.kpForm.value.imageUrl,
+    order: this.editingKeyPoint.order
+  };
+
+  this.tourService.updateKeyPoint(this.editingKeyPoint.id!, updatedKeyPoint).subscribe({
+    next: (kp) => {
+      const index = this.keyPoints.findIndex(x => x.id === kp.id);
+
+      if (index !== -1) {
+        this.keyPoints[index] = kp;
+      }
+      this.renderKeyPointMarkers();
+
+      
+
+      this.editingKeyPoint = null;
+      this.kpForm.reset();
+      this.selectedLatLng = null;
+
+      if (this.tempMarker && this.map) {
+        this.map.removeLayer(this.tempMarker);
+        this.tempMarker = null;
+      }
+
+      this.kpLoading = false;
+      this.cdr.detectChanges();
+    },
+    error: () => {
+      this.kpError = 'Greška pri izmeni ključne tačke.';
+      this.kpLoading = false;
+    }
+  });
+}
 
   deleteKeyPoint(kp: KeyPoint): void {
-    this.tourService.deleteKeyPoint(kp.id!).subscribe({
-      next: () => this.keyPoints = this.keyPoints.filter(k => k.id !== kp.id)
-    });
-  }
+  this.tourService.deleteKeyPoint(kp.id!).subscribe({
+    next: () => {
+      this.keyPoints = this.keyPoints.filter(k => k.id !== kp.id);
+      this.renderKeyPointMarkers();
+
+      const markerIndex = this.keyPointMarkers.findIndex(
+        item => item.keyPointId === kp.id
+      );
+
+      if (markerIndex !== -1 && this.map) {
+        this.map.removeLayer(this.keyPointMarkers[markerIndex].marker);
+        this.keyPointMarkers.splice(markerIndex, 1);
+      }
+
+      this.cdr.detectChanges();
+    }
+  });
+}
 
   submitReview(): void {
     if (this.reviewForm.invalid) return;

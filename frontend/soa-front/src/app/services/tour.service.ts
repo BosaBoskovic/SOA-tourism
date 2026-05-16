@@ -70,5 +70,9 @@ publishTour(tourId: string): Observable<Tour> {
   return this.http.put<Tour>(`${this.apiUrl}/tours/${tourId}/publish`, {});
 }
 
+updateKeyPoint(id: string, data: Omit<KeyPoint, 'id'>): Observable<KeyPoint> {
+  return this.http.put<KeyPoint>(`${this.apiUrl}/keypoints/${id}`, data);
+}
+
 
 }

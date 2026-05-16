@@ -32,13 +32,16 @@
             <p>{{ kp.description }}</p>
             <small>📍 {{ kp.latitude | number:'1.4-4' }}, {{ kp.longitude | number:'1.4-4' }}</small>
           </div>
-          <button *ngIf="isOwner()" class="btn-delete" (click)="deleteKeyPoint(kp)">🗑</button>
+          <div class="kp-actions" *ngIf="isOwner()">
+  <button class="btn-edit" type="button" (click)="startEditKeyPoint(kp)">✏️</button>
+  <button class="btn-delete" type="button" (click)="deleteKeyPoint(kp)">🗑</button>
+</div>
         </div>
       </div>
 
       <!-- Forma za dodavanje ključne tačke - samo autor -->
       <div *ngIf="isOwner()" class="kp-form">
-        <h4>Dodaj ključnu tačku</h4>
+        <h4>{{ editingKeyPoint ? 'Izmeni ključnu tačku' : 'Dodaj ključnu tačku' }}</h4>
         <p *ngIf="selectedLatLng" class="selected-coords">
           ✅ Lokacija: {{ selectedLatLng.lat | number:'1.4-4' }}, {{ selectedLatLng.lng | number:'1.4-4' }}
         </p>
@@ -64,8 +67,17 @@
           </div>
           <p *ngIf="kpError" class="error">{{ kpError }}</p>
           <button type="submit" class="btn btn-primary" [disabled]="kpLoading">
-            {{ kpLoading ? 'Dodavanje...' : 'Dodaj tačku' }}
+            {{ kpLoading ? 'Čuvanje...' : (editingKeyPoint ? 'Sačuvaj izmene' : 'Dodaj tačku') }}
           </button>
+
+                <button
+        *ngIf="editingKeyPoint"
+        type="button"
+        class="btn btn-secondary"
+        (click)="cancelEditKeyPoint()"
+      >
+        Otkaži izmenu
+      </button>
         </form>
       </div>
     </section>
