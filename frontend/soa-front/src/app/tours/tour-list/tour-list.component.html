@@ -1,0 +1,28 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>Moje ture</h2>
+    <a routerLink="/tours/new" class="btn btn-primary">+ Nova tura</a>
+  </div>
+
+  <p *ngIf="loading">Učitavanje...</p>
+  <p *ngIf="error" class="error">{{ error }}</p>
+
+  <div *ngIf="!loading && tours.length === 0" class="empty-state">
+    Nemate još nijednu turu. Kreirajte prvu!
+  </div>
+
+  <div class="tours-grid">
+    <div *ngFor="let tour of tours" class="tour-card">
+      <div class="tour-card-header">
+        <h3>{{ tour.name }}</h3>
+        <span class="badge" [class]="'badge-' + tour.status">{{ tour.status }}</span>
+      </div>
+      <p class="tour-desc">{{ tour.description }}</p>
+      <div class="tour-meta">
+        <span>🏔 {{ difficultyLabel(tour.difficulty) }}</span>
+        <span *ngFor="let tag of tour.tags" class="tag">{{ tag }}</span>
+      </div>
+      <a [routerLink]="['/tours', tour.id]" class="btn btn-outline">Otvori</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,55 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>Nova tura</h2>
+    <a routerLink="/tours" class="btn btn-outline">← Nazad</a>
+  </div>
+
+  <div class="form-card">
+    <p *ngIf="error" class="error">{{ error }}</p>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label>Naziv ture *</label>
+        <input class="form-control" formControlName="name" placeholder="Npr. Tura kroz stari grad" />
+      </div>
+
+      <div class="form-group">
+        <label>Opis *</label>
+        <textarea class="form-control" formControlName="description" rows="4" placeholder="Opišite turu..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Težina *</label>
+        <select class="form-control" formControlName="difficulty">
+          <option value="">Izaberite težinu</option>
+          <option value="easy">Lako</option>
+          <option value="medium">Srednje</option>
+          <option value="hard">Teško</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Tagovi</label>
+        <div class="tags-input">
+          <input
+            class="form-control"
+            [(ngModel)]="tagsInput"
+            [ngModelOptions]="{standalone: true}"
+            placeholder="Dodaj tag i pritisni Enter"
+            (keydown.enter)="$event.preventDefault(); addTag()"
+          />
+          <button type="button" class="btn btn-outline" (click)="addTag()">Dodaj</button>
+        </div>
+        <div class="tags-list">
+          <span *ngFor="let tag of form.value.tags" class="tag">
+            {{ tag }} <button type="button" (click)="removeTag(tag)">×</button>
+          </span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" [disabled]="form.invalid || loading">
+        {{ loading ? 'Kreiranje...' : 'Kreiraj turu' }}
+      </button>
+    </form>
+  </div>
+</div>

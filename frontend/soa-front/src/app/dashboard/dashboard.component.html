@@ -2,8 +2,12 @@
   <nav class="navbar">
     <div class="navbar-content">
       <h1>Tourism App</h1>
+      <div class="nav-links">
+        <a routerLink="/profile" class="nav-link">Profil</a>
+        <a routerLink="/tours" class="nav-link" *ngIf="currentUser?.role === 'guide'">Moje ture</a>
+      </div>
       <div *ngIf="currentUser" class="user-info">
-        <span>Dobrodošli, {{ currentUser.username }}!</span>
+        <span>{{ currentUser.username }}</span>
         <button class="btn btn-secondary" (click)="logout()">Odjava</button>
       </div>
     </div>
@@ -21,4 +25,6 @@
     </div>
     <app-admin *ngIf="currentUser?.role === 'admin'"></app-admin>
   </div>
+
+
 </div>

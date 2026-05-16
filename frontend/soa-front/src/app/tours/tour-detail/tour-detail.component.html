@@ -1,0 +1,105 @@
+<div class="page-container">
+  <p *ngIf="loading">Učitavanje...</p>
+  <p *ngIf="error" class="error">{{ error }}</p>
+
+  <div *ngIf="tour">
+    <div class="tour-header">
+      <div>
+        <a routerLink="/tours" class="back-link">← Moje ture</a>
+        <h2>{{ tour.name }}</h2>
+        <p class="tour-desc">{{ tour.description }}</p>
+        <div class="tour-meta">
+          <span class="badge" [class]="'badge-' + tour.status">{{ tour.status }}</span>
+          <span>🏔 {{ tour.difficulty }}</span>
+          <span *ngFor="let tag of tour.tags" class="tag">{{ tag }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KLJUČNE TAČKE - vidljive svim, dodavanje samo autoru -->
+    <section class="section">
+      <h3>Ključne tačke</h3>
+      <p class="hint" *ngIf="isOwner()">Kliknite na mapu da izaberete lokaciju, zatim popunite formu ispod.</p>
+
+      <div id="tour-map" class="map"></div>
+
+      <!-- Lista ključnih tačaka -->
+      <div class="kp-list" *ngIf="keyPoints.length > 0">
+        <div *ngFor="let kp of keyPoints" class="kp-item">
+          <img *ngIf="kp.imageUrl" [src]="kp.imageUrl" class="kp-img" />
+          <div>
+            <strong>{{ kp.order }}. {{ kp.name }}</strong>
+            <p>{{ kp.description }}</p>
+            <small>📍 {{ kp.latitude | number:'1.4-4' }}, {{ kp.longitude | number:'1.4-4' }}</small>
+          </div>
+          <button *ngIf="isOwner()" class="btn-delete" (click)="deleteKeyPoint(kp)">🗑</button>
+        </div>
+      </div>
+
+      <!-- Forma za dodavanje ključne tačke - samo autor -->
+      <div *ngIf="isOwner()" class="kp-form">
+        <h4>Dodaj ključnu tačku</h4>
+        <p *ngIf="selectedLatLng" class="selected-coords">
+          ✅ Lokacija: {{ selectedLatLng.lat | number:'1.4-4' }}, {{ selectedLatLng.lng | number:'1.4-4' }}
+        </p>
+        <p *ngIf="!selectedLatLng" class="hint">Kliknite na mapu da odaberete lokaciju</p>
+
+        <form [formGroup]="kpForm" (ngSubmit)="addKeyPoint()">
+          <div class="form-row">
+            <input class="form-control" formControlName="name" placeholder="Naziv (obavezno)" />
+            <input class="form-control" formControlName="description" placeholder="Opis" />
+            <input class="form-control" formControlName="imageUrl" placeholder="URL slike" />
+          </div>
+          <p *ngIf="kpError" class="error">{{ kpError }}</p>
+          <button type="submit" class="btn btn-primary" [disabled]="kpLoading">
+            {{ kpLoading ? 'Dodavanje...' : 'Dodaj tačku' }}
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- RECENZIJE -->
+    <section class="section">
+      <h3>Recenzije ({{ reviews.length }})</h3>
+
+      <div *ngIf="reviews.length === 0" class="empty-state">Nema recenzija za ovu turu.</div>
+
+      <div *ngFor="let review of reviews" class="review-card">
+        <div class="review-header">
+          <strong>{{ review.touristName }}</strong>
+          <span class="stars">
+            <span *ngFor="let s of starsArray(review.rating)">⭐</span>
+          </span>
+          <span class="date">{{ review.createdAt | date:'dd.MM.yyyy' }}</span>
+        </div>
+        <p>{{ review.comment }}</p>
+        <small class="visit-date">Posetio: {{ review.tourVisitDate | date:'dd.MM.yyyy' }}</small>
+      </div>
+
+      <!-- Forma za recenziju - samo turista -->
+      <div *ngIf="isTourist()" class="review-form">
+        <h4>Ostavi recenziju</h4>
+        <p *ngIf="reviewSuccess" class="success">{{ reviewSuccess }}</p>
+        <p *ngIf="reviewError" class="error">{{ reviewError }}</p>
+
+        <form [formGroup]="reviewForm" (ngSubmit)="submitReview()">
+          <div class="form-group">
+            <label>Ocena (1-5)</label>
+            <input type="number" class="form-control" formControlName="rating" min="1" max="5" />
+          </div>
+          <div class="form-group">
+            <label>Komentar</label>
+            <textarea class="form-control" formControlName="comment" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Datum posete</label>
+            <input type="date" class="form-control" formControlName="tourVisitDate" />
+          </div>
+          <button type="submit" class="btn btn-primary" [disabled]="reviewForm.invalid || reviewLoading">
+            {{ reviewLoading ? 'Slanje...' : 'Pošalji recenziju' }}
+          </button>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
