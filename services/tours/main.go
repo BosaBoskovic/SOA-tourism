@@ -56,7 +56,7 @@ func main() {
 	touristPositionRepo := repository.NewTouristPositionRepository(db)
 
 	// ── Services ──────────────────────────────────────────────
-	tourService := service.NewTourService(tourRepo)
+	tourService := service.NewTourService(tourRepo, keyPointRepo)
 	keyPointService := service.NewKeyPointService(keyPointRepo, tourRepo)
 	reviewService := service.NewReviewService(reviewRepo, tourRepo)
 	touristPositionService := service.NewTouristPositionService(touristPositionRepo)
@@ -69,13 +69,15 @@ func main() {
 
 	// ── Router ────────────────────────────────────────────────
 	r := mux.NewRouter()
-	r.Use(corsMiddleware)
+	//r.Use(corsMiddleware)
 
 	// Tours
 	r.HandleFunc("/tours", tourHandler.Create).Methods(http.MethodPost)
+	r.HandleFunc("/tours", tourHandler.GetPublished).Methods(http.MethodGet)
 	r.HandleFunc("/tours/author/{authorId}", tourHandler.GetByAuthor).Methods(http.MethodGet)
 	r.HandleFunc("/tours/{id}", tourHandler.GetByID).Methods(http.MethodGet)
 	r.HandleFunc("/tours/{id}", tourHandler.Update).Methods(http.MethodPut)
+	r.HandleFunc("/tours/{id}/publish", tourHandler.Publish).Methods(http.MethodPut)
 
 	// KeyPoints
 	r.HandleFunc("/keypoints", keyPointHandler.Create).Methods(http.MethodPost)
@@ -91,8 +93,8 @@ func main() {
 	r.HandleFunc("/reviews/{id}", reviewHandler.Delete).Methods(http.MethodDelete)
 
 	// Tourist Position Simulator
-    r.HandleFunc("/tourist-position", touristPositionHandler.Update).Methods(http.MethodPut)
-    r.HandleFunc("/tourist-position/{touristId}", touristPositionHandler.GetByTouristID).Methods(http.MethodGet)
+	r.HandleFunc("/tourist-position", touristPositionHandler.Update).Methods(http.MethodPut)
+	r.HandleFunc("/tourist-position/{touristId}", touristPositionHandler.GetByTouristID).Methods(http.MethodGet)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -111,7 +113,7 @@ func main() {
 	fmt.Println("Shutting down tour service...")
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
+/*func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -122,4 +124,4 @@ func corsMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
+}*/

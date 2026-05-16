@@ -1,18 +1,24 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth/services/auth.service';
 import { AdminComponent } from '../admin/admin.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, AdminComponent],
+  imports: [CommonModule, AdminComponent, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent implements OnInit {
   currentUser: any = null;
+
+  menuOpen = false;
+
+toggleMenu(): void {
+  this.menuOpen = !this.menuOpen;
+}
 
   constructor(
     private authService: AuthService,
