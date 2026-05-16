@@ -69,3 +69,51 @@ func (r *TourRepository) Update(id bson.ObjectID, update bson.M) error {
 	}
 	return nil
 }
+
+func (r *TourRepository) FindAllPublished() ([]model.Tour, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := r.collection.Find(ctx, bson.M{"status": model.StatusPublished})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var tours []model.Tour
+	if err = cursor.All(ctx, &tours); err != nil {
+		return nil, err
+	}
+
+	if tours == nil {
+		tours = []model.Tour{}
+	}
+
+	return tours, nil
+}
+
+func (r *TourRepository) UpdateStatus(id bson.ObjectID, status model.TourStatus) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := r.collection.UpdateOne(
+		ctx,
+		bson.M{"_id": id},
+		bson.M{
+			"$set": bson.M{
+				"status":    status,
+				"updatedAt": time.Now(),
+			},
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+
+	return nil
+}

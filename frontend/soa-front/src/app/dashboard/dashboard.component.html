@@ -1,30 +1,128 @@
 <div class="dashboard-container">
   <nav class="navbar">
     <div class="navbar-content">
-      <h1>Tourism App</h1>
-      <div class="nav-links">
-        <a routerLink="/profile" class="nav-link">Profil</a>
-        <a routerLink="/tours" class="nav-link" *ngIf="currentUser?.role === 'guide'">Moje ture</a>
+      <div class="brand">
+        <div class="brand-icon">✦</div>
+        <div>
+          <h1>Tourism App</h1>
+          <span>Explore. Create. Manage.</span>
+        </div>
       </div>
-      <div *ngIf="currentUser" class="user-info">
-        <span>{{ currentUser.username }}</span>
-        <button class="btn btn-secondary" (click)="logout()">Odjava</button>
+
+      <div class="menu-wrapper" *ngIf="currentUser">
+        <div class="user-box">
+          <span class="username">{{ currentUser.username }}</span>
+
+          <button class="dropdown-toggle" type="button" (click)="toggleMenu()">
+            ☰
+          </button>
+        </div>
+
+        <div class="dropdown-menu" [class.show]="menuOpen">
+          <a
+            routerLink="/profile"
+            *ngIf="currentUser.role === 'tourist' || currentUser.role === 'guide'"
+            (click)="menuOpen = false"
+          >
+            Profil
+          </a>
+
+          <a
+            routerLink="/tours"
+            *ngIf="currentUser.role === 'guide'"
+            (click)="menuOpen = false"
+          >
+            Moje ture
+          </a>
+
+          <a
+            routerLink="/tours"
+            *ngIf="currentUser.role === 'tourist'"
+            (click)="menuOpen = false"
+          >
+            Pretraži ture
+          </a>
+
+          <a
+            *ngIf="currentUser.role === 'admin'"
+            (click)="menuOpen = false"
+          >
+            Administracija
+          </a>
+
+          <button type="button" (click)="logout()">
+            Odjava
+          </button>
+        </div>
       </div>
     </div>
   </nav>
 
-  <div class="dashboard-content">
-    <div class="welcome-card">
-      <h2>Dobrodošli na dashboard</h2>
-      <p *ngIf="currentUser">
-        <strong>Korisnik:</strong> {{ currentUser.username }}<br>
-        <strong>Email:</strong> {{ currentUser.email }}<br>
-        <strong>Uloga:</strong> {{ currentUser.role }}
-      </p>
-      <p>Ovo je osnovni dashboard. Ovdje možete dodati više sadržaja.</p>
-    </div>
+  <main class="dashboard-content">
+    <section class="hero-card">
+      <div class="hero-text">
+        <p class="role-badge">{{ currentUser?.role | uppercase }}</p>
+
+        <h2>Zdravo, {{ currentUser?.username }}</h2>
+
+        <p class="hero-description" *ngIf="currentUser?.role === 'tourist'">
+          Pronađi inspiraciju za sledeću avanturu, istraži ture i sačuvaj omiljena mesta.
+        </p>
+
+        <p class="hero-description" *ngIf="currentUser?.role === 'guide'">
+          Kreiraj moćne ture, upravljaj ključnim tačkama i predstavi svoje rute turistima.
+        </p>
+
+        <p class="hero-description" *ngIf="currentUser?.role === 'admin'">
+          Pregledaj korisnike sistema i upravljaj njihovim nalozima.
+        </p>
+
+        <div class="user-details">
+          <span>{{ currentUser?.email }}</span>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="glass-card main-stat">
+          <h3>Dashboard</h3>
+          <p>Aktivan nalog</p>
+        </div>
+
+        <div class="floating-card card-one">🌍 Tours</div>
+        <div class="floating-card card-two">📍 Points</div>
+        <div class="floating-card card-three">⭐ Reviews</div>
+      </div>
+    </section>
+
+    <section class="quick-actions" *ngIf="currentUser?.role !== 'admin'">
+      <div
+        class="action-card"
+        *ngIf="currentUser?.role === 'tourist'"
+        routerLink="/tours"
+      >
+        <h3>Pretraži ture</h3>
+        <p>Pronađi ture koje odgovaraju tvom stilu putovanja.</p>
+      </div>
+
+      <div
+        class="action-card"
+        *ngIf="currentUser?.role === 'tourist' || currentUser?.role === 'guide'"
+        routerLink="/profile"
+      >
+        <h3>Moj profil</h3>
+        <p>Uredi svoje podatke, sliku, bio i motto.</p>
+      </div>
+
+      <div
+        class="action-card"
+        *ngIf="currentUser?.role === 'guide'"
+        routerLink="/tours"
+      >
+        <h3>Moje ture</h3>
+        <p>Kreiraj, izmeni i organizuj svoje turističke ture.</p>
+      </div>
+    </section>
+
     <app-admin *ngIf="currentUser?.role === 'admin'"></app-admin>
-  </div>
-
-
+  </main>
 </div>

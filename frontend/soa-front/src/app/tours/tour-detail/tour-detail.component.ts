@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, PLATFORM_ID, Inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, PLATFORM_ID, Inject,  ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TourService, Tour, KeyPoint } from '../../services/tour.service';
@@ -20,6 +20,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   currentUser: any;
   loading = true;
   error = '';
+  
 
   private map: any = null;
   private L: any = null;
@@ -41,6 +42,8 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
     private reviewService: ReviewService,
     private authService: AuthService,
     private fb: FormBuilder,
+    private cdr: ChangeDetectorRef,
+    private zone: NgZone,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.kpForm = this.fb.group({
@@ -57,23 +60,46 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.authService.currentUser$.subscribe(u => this.currentUser = u);
-    const id = this.route.snapshot.paramMap.get('id')!;
-    this.tourService.getTourById(id).subscribe({
-      next: (tour) => {
+  this.authService.currentUser$.subscribe(u => {
+    this.currentUser = u;
+    this.cdr.detectChanges();
+  });
+
+  const id = this.route.snapshot.paramMap.get('id')!;
+
+  this.tourService.getTourById(id).subscribe({
+    next: (tour) => {
+      console.log('TOUR DETAIL:', tour);
+
+      this.zone.run(() => {
         this.tour = tour;
         this.loading = false;
+        this.cdr.detectChanges();
+
         this.loadKeyPoints(id);
         this.loadReviews(id);
-      },
-      error: () => { this.error = 'Tura nije pronađena.'; this.loading = false; }
-    });
-  }
+
+        if (isPlatformBrowser(this.platformId)) {
+          setTimeout(() => this.initMap(), 200);
+        }
+      });
+    },
+    error: (err) => {
+      console.error('TOUR DETAIL ERROR:', err);
+
+      this.zone.run(() => {
+        this.error = err.error?.error || 'Tura nije pronađena.';
+        this.loading = false;
+        this.cdr.detectChanges();
+      });
+    }
+  });
+}
 
   async ngAfterViewInit(): Promise<void> {
-    if (isPlatformBrowser(this.platformId)) {
-      await this.initMap();
-    }
+    //if (isPlatformBrowser(this.platformId)) {
+     // await this.initMap();
+    //}
   }
 
   ngOnDestroy(): void {
@@ -81,6 +107,15 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private async initMap(): Promise<void> {
+    
+    if (this.map) return;
+
+  const mapContainer = document.getElementById('tour-map');
+  if (!mapContainer) {
+    setTimeout(() => this.initMap(), 100);
+    return;
+  }
+    
     // Dinamički import - izvršava se SAMO u browseru
     this.L = await import('leaflet');
 
@@ -124,20 +159,59 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadKeyPoints(tourId: string): void {
-    this.tourService.getKeyPointsByTour(tourId).subscribe({
-      next: (kps) => {
+  this.tourService.getKeyPointsByTour(tourId).subscribe({
+    next: (kps) => {
+      console.log('KEYPOINTS:', kps);
+
+      this.zone.run(() => {
         this.keyPoints = kps;
-        // Mapa možda još nije inicijalizovana, renderKeyPointMarkers() čeka na map
+        this.cdr.detectChanges();
+
         if (this.map) this.renderKeyPointMarkers();
-      }
-    });
-  }
+      });
+    },
+    error: (err) => {
+      console.error('KEYPOINTS ERROR:', err);
+    }
+  });
+}
 
   loadReviews(tourId: string): void {
-    this.reviewService.getReviewsByTour(tourId).subscribe({
-      next: (reviews) => this.reviews = reviews
-    });
+  this.reviewService.getReviewsByTour(tourId).subscribe({
+    next: (reviews) => {
+      console.log('REVIEWS:', reviews);
+
+      this.zone.run(() => {
+        this.reviews = reviews;
+        this.cdr.detectChanges();
+      });
+    },
+    error: (err) => {
+      console.error('REVIEWS ERROR:', err);
+    }
+  });
+}
+
+  onKeyPointImageSelected(event: Event): void {
+  const input = event.target as HTMLInputElement;
+
+  if (!input.files || input.files.length === 0) {
+    return;
   }
+
+  const file = input.files[0];
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    this.kpForm.patchValue({
+      imageUrl: reader.result as string
+    });
+
+    this.cdr.detectChanges();
+  };
+
+  reader.readAsDataURL(file);
+}
 
   addKeyPoint(): void {
     if (!this.selectedLatLng || this.kpForm.invalid) {

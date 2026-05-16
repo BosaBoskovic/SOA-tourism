@@ -56,7 +56,7 @@ func main() {
 	touristPositionRepo := repository.NewTouristPositionRepository(db)
 
 	// ── Services ──────────────────────────────────────────────
-	tourService := service.NewTourService(tourRepo)
+	tourService := service.NewTourService(tourRepo, keyPointRepo)
 	keyPointService := service.NewKeyPointService(keyPointRepo, tourRepo)
 	reviewService := service.NewReviewService(reviewRepo, tourRepo)
 	touristPositionService := service.NewTouristPositionService(touristPositionRepo)
@@ -73,9 +73,11 @@ func main() {
 
 	// Tours
 	r.HandleFunc("/tours", tourHandler.Create).Methods(http.MethodPost)
+	r.HandleFunc("/tours", tourHandler.GetPublished).Methods(http.MethodGet)
 	r.HandleFunc("/tours/author/{authorId}", tourHandler.GetByAuthor).Methods(http.MethodGet)
 	r.HandleFunc("/tours/{id}", tourHandler.GetByID).Methods(http.MethodGet)
 	r.HandleFunc("/tours/{id}", tourHandler.Update).Methods(http.MethodPut)
+	r.HandleFunc("/tours/{id}/publish", tourHandler.Publish).Methods(http.MethodPut)
 
 	// KeyPoints
 	r.HandleFunc("/keypoints", keyPointHandler.Create).Methods(http.MethodPost)

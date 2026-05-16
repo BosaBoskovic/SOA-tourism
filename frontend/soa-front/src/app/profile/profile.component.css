@@ -40,3 +40,11 @@
 .btn-secondary { background: var(--color-border); color: var(--color-text-primary); }
 .alert-error { color: var(--color-error); }
 .alert-success { color: var(--color-success); }
+.profile-img-preview {
+  margin-top: 0.8rem;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #dbe4ec;
+}

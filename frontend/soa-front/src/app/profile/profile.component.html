@@ -28,9 +28,21 @@
         <input class="form-control" formControlName="lastName" />
       </div>
       <div class="form-group">
-        <label>URL profilne slike</label>
-        <input class="form-control" formControlName="imageURL" placeholder="https://..." />
-      </div>
+  <label>Profilna slika</label>
+
+  <input
+    class="form-control"
+    type="file"
+    accept="image/*"
+    (change)="onProfileImageSelected($event)"
+  />
+
+  <img
+    *ngIf="profileForm.value.imageURL"
+    [src]="profileForm.value.imageURL"
+    class="profile-img-preview"
+  />
+</div>
       <div class="form-group">
         <label>Biografija</label>
         <textarea class="form-control" formControlName="bio" rows="3"></textarea>

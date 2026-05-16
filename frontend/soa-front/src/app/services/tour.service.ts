@@ -62,4 +62,13 @@ export class TourService {
   deleteKeyPoint(id: string): Observable<any> {
     return this.http.delete(`${this.apiUrl}/keypoints/${id}`);
   }
+
+  getAllTours(): Observable<Tour[]> {
+  return this.http.get<Tour[]>(`${this.apiUrl}/tours`);
+}
+publishTour(tourId: string): Observable<Tour> {
+  return this.http.put<Tour>(`${this.apiUrl}/tours/${tourId}/publish`, {});
+}
+
+
 }

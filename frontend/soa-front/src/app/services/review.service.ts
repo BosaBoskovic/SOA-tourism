@@ -37,4 +37,6 @@ export class ReviewService {
   getReviewsByTour(tourId: string): Observable<Review[]> {
     return this.http.get<Review[]>(`${this.apiUrl}/tour/${tourId}`);
   }
+
+  
 }

@@ -66,6 +66,12 @@ func main() {
 
 	// --- Stakeholders servis ---
 	// Front i backend koriste /stakeholders/* rute, pa gateway ne sme da menja prefiks.
+
+	mux.HandleFunc("/stakeholders", func(w http.ResponseWriter, r *http.Request) {
+    	log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
+    	stakeholdersProxy.ServeHTTP(w, r)
+    })
+
 	mux.HandleFunc("/stakeholders/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
 		stakeholdersProxy.ServeHTTP(w, r)
@@ -93,10 +99,22 @@ func main() {
 	})
 
 	// --- Tours servis ---
+
+	mux.HandleFunc("/tours", func(w http.ResponseWriter, r *http.Request) {
+    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+    	toursProxy.ServeHTTP(w, r)
+    })
+
 	mux.HandleFunc("/tours/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
 		toursProxy.ServeHTTP(w, r)
 	})
+
+    mux.HandleFunc("/keypoints", func(w http.ResponseWriter, r *http.Request) {
+    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+    	toursProxy.ServeHTTP(w, r)
+    })
+
 	mux.HandleFunc("/keypoints/", func(w http.ResponseWriter, r *http.Request) {
 		toursProxy.ServeHTTP(w, r)
 	})

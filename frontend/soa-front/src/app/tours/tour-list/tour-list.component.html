@@ -1,28 +1,79 @@
 <div class="page-container">
   <div class="page-header">
-    <h2>Moje ture</h2>
-    <a routerLink="/tours/new" class="btn btn-primary">+ Nova tura</a>
+    <h2>{{ currentUser?.role === 'tourist' ? 'Pretraži ture' : 'Moje ture' }}</h2>
+
+    <a
+      *ngIf="currentUser?.role === 'guide'"
+      routerLink="/tours/new"
+      class="btn btn-primary"
+    >
+      + Nova tura
+    </a>
   </div>
 
   <p *ngIf="loading">Učitavanje...</p>
   <p *ngIf="error" class="error">{{ error }}</p>
 
   <div *ngIf="!loading && tours.length === 0" class="empty-state">
-    Nemate još nijednu turu. Kreirajte prvu!
+    {{ currentUser?.role === 'tourist'
+      ? 'Trenutno nema dostupnih tura.'
+      : 'Nemate još nijednu turu. Kreirajte prvu!'
+    }}
   </div>
 
   <div class="tours-grid">
     <div *ngFor="let tour of tours" class="tour-card">
       <div class="tour-card-header">
         <h3>{{ tour.name }}</h3>
-        <span class="badge" [class]="'badge-' + tour.status">{{ tour.status }}</span>
+        <span class="badge" [class]="'badge-' + tour.status">
+          {{ tour.status }}
+        </span>
       </div>
+
       <p class="tour-desc">{{ tour.description }}</p>
+
       <div class="tour-meta">
-        <span>🏔 {{ difficultyLabel(tour.difficulty) }}</span>
-        <span *ngFor="let tag of tour.tags" class="tag">{{ tag }}</span>
+  <span>🏔 {{ difficultyLabel(tour.difficulty) }}</span>
+
+  <span class="price-tag">
+    💰 {{ tour.price }} coins
+  </span>
+
+  <span *ngFor="let tag of tour.tags" class="tag">
+    {{ tag }}
+  </span>
+</div>
+
+      <div class="tour-actions">
+        <a [routerLink]="['/tours', tour.id]" class="btn btn-outline">
+          Otvori
+        </a>
+
+            <button
+      *ngIf="currentUser?.role === 'guide' && tour.status === 'draft'"
+      type="button"
+      class="btn btn-publish"
+      (click)="publishTour(tour)"
+    >
+      Objavi turu
+    </button>
+
+        <button
+          *ngIf="currentUser?.role === 'tourist'"
+          type="button"
+          class="btn btn-review"
+          (click)="openReviewForm(tour)"
+        >
+          Oceni turu
+        </button>
       </div>
-      <a [routerLink]="['/tours', tour.id]" class="btn btn-outline">Otvori</a>
     </div>
   </div>
+
+  <app-review-form
+    *ngIf="selectedTourForReview"
+    [tour]="selectedTourForReview"
+    (close)="selectedTourForReview = null"
+    (submitReview)="submitReview($event)"
+  ></app-review-form>
 </div>

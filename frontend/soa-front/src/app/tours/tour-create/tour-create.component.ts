@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef, NgZone  } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -23,7 +23,9 @@ export class TourCreateComponent {
     private fb: FormBuilder,
     private tourService: TourService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+    private zone: NgZone
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required]],
@@ -48,13 +50,38 @@ export class TourCreateComponent {
   }
 
   onSubmit(): void {
-    if (this.form.invalid) return;
-    this.loading = true;
+  if (this.form.invalid) return;
 
-    const user = this.authService['currentUserSubject'].getValue();
-    this.tourService.createTour({ ...this.form.value, authorId: user.username }).subscribe({
-      next: (tour) => this.router.navigate(['/tours', tour.id]),
-      error: () => { this.error = 'Greška pri kreiranju ture.'; this.loading = false; }
-    });
-  }
+  this.loading = true;
+  this.error = '';
+
+  const user = this.authService['currentUserSubject'].getValue();
+
+  this.tourService.createTour({
+    ...this.form.value,
+    authorId: user.username
+  }).subscribe({
+    next: (tour) => {
+      console.log('CREATED TOUR:', tour);
+
+      this.zone.run(() => {
+        this.loading = false;
+        this.cdr.detectChanges();
+
+        // vrati na listu tura
+        this.router.navigate(['/tours']);
+      });
+    },
+
+    error: (err) => {
+      console.error('CREATE TOUR ERROR:', err);
+
+      this.zone.run(() => {
+        this.error = err.error?.error || 'Greška pri kreiranju ture.';
+        this.loading = false;
+        this.cdr.detectChanges();
+      });
+    }
+  });
+}
 }

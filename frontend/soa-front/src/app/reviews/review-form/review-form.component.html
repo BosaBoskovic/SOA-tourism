@@ -1,0 +1,47 @@
+<div class="review-overlay">
+  <div class="review-card">
+    <button class="close-btn" type="button" (click)="closeForm()">×</button>
+
+    <h2>Oceni turu</h2>
+    <p class="tour-name">{{ tour?.name || tour?.title }}</p>
+
+    <label>Ocena</label>
+    <select [(ngModel)]="rating">
+      <option [value]="1">1</option>
+      <option [value]="2">2</option>
+      <option [value]="3">3</option>
+      <option [value]="4">4</option>
+      <option [value]="5">5</option>
+    </select>
+
+    <label>Komentar</label>
+    <textarea
+      [(ngModel)]="comment"
+      placeholder="Napiši svoje utiske o turi..."
+    ></textarea>
+
+    <label>Datum posete ture</label>
+    <input type="date" [(ngModel)]="visitDate" />
+
+    <label>Slike</label>
+    <div class="image-row">
+  <input
+    type="file"
+    accept="image/*"
+    multiple
+    (change)="onImagesSelected($event)"
+  />
+</div>
+
+    <div class="images-preview" *ngIf="images.length > 0">
+      <div class="image-item" *ngFor="let img of images; let i = index">
+        <img [src]="img" alt="review image" />
+        <button type="button" (click)="removeImage(i)">×</button>
+      </div>
+    </div>
+
+    <button class="submit-btn" type="button" (click)="submit()">
+      Sačuvaj recenziju
+    </button>
+  </div>
+</div>

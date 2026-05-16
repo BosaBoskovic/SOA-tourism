@@ -14,6 +14,12 @@ import { AdminComponent } from '../admin/admin.component';
 export class DashboardComponent implements OnInit {
   currentUser: any = null;
 
+  menuOpen = false;
+
+toggleMenu(): void {
+  this.menuOpen = !this.menuOpen;
+}
+
   constructor(
     private authService: AuthService,
     private router: Router

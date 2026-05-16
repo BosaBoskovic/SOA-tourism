@@ -11,11 +11,15 @@ import (
 )
 
 type TourService struct {
-	repo *repository.TourRepository
+	repo         *repository.TourRepository
+	keyPointRepo *repository.KeyPointRepository
 }
 
-func NewTourService(repo *repository.TourRepository) *TourService {
-	return &TourService{repo: repo}
+func NewTourService(repo *repository.TourRepository, keyPointRepo *repository.KeyPointRepository) *TourService {
+	return &TourService{
+		repo: repo,
+		keyPointRepo: keyPointRepo,
+	}
 }
 
 func (s *TourService) Create(req *model.CreateTourRequest) (*model.Tour, error) {
@@ -89,6 +93,41 @@ func (s *TourService) Update(id string, req *model.UpdateTourRequest) (*model.To
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, errors.New("tour not found")
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.FindByID(oid)
+}
+
+func (s *TourService) GetPublished() ([]model.Tour, error) {
+	return s.repo.FindAllPublished()
+}
+
+func (s *TourService) Publish(id string) (*model.Tour, error) {
+	oid, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, errors.New("invalid tour ID")
+	}
+
+	_, err = s.repo.FindByID(oid)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, errors.New("tour not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	count, err := s.keyPointRepo.CountByTourID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if count < 2 {
+		return nil, errors.New("Tura mora imati najmanje 2 ključne tačke da bi bila objavljena.")
+	}
+
+	err = s.repo.UpdateStatus(oid, model.StatusPublished)
 	if err != nil {
 		return nil, err
 	}

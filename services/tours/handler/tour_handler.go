@@ -78,3 +78,27 @@ func (h *TourHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, tour)
 }
+
+// GET /tours
+func (h *TourHandler) GetPublished(w http.ResponseWriter, r *http.Request) {
+	tours, err := h.service.GetPublished()
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, tours)
+}
+
+// PUT /tours/{id}/publish
+func (h *TourHandler) Publish(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	tour, err := h.service.Publish(id)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, tour)
+}
