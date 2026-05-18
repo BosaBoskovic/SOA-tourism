@@ -46,7 +46,9 @@
           <a routerLink="/position-simulator" *ngIf="currentUser?.role === 'tourist'">
         Trenutna lokacija
     </a>
-
+          <a routerLink="/blog" (click)="menuOpen = false">
+            Blog
+          </a>
           <a
             *ngIf="currentUser.role === 'admin'"
             (click)="menuOpen = false"

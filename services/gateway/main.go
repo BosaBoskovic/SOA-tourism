@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -9,7 +11,6 @@ import (
 	"strings"
 )
 
-// CORS middleware za omogućavanje cross-origin zahteva
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -17,7 +18,6 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Max-Age", "86400")
 
-		// Odgovori na preflight zahteve
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -49,35 +49,83 @@ func rewritePrefix(prefix, replacement string, next http.Handler) http.HandlerFu
 	}
 }
 
-func main() {
-	// URL-ovi servisa (čitaju se iz environment varijabli)
-	stakeholdersURL := getEnvOrDefault("STAKEHOLDERS_URL", "http://localhost:8081")
-	blogURL := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
-	followersURL := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
-	toursURL := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
+// extractUsernameFromJWT čita Subject claim iz JWT tokena bez verifikacije potpisa.
+// Verifikacija se radi u svakom servisu koji to treba — gateway samo prosljeđuje username.
+func extractUsernameFromJWT(authHeader string) string {
+	if authHeader == "" {
+		return ""
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return ""
+	}
+	tokenString := strings.TrimSpace(parts[1])
 
-	// Kreiramo reverse proxy za svaki servis
+	segments := strings.Split(tokenString, ".")
+	if len(segments) != 3 {
+		return ""
+	}
+
+	// Dodaj padding ako nedostaje
+	payload := segments[1]
+	switch len(payload) % 4 {
+	case 2:
+		payload += "=="
+	case 3:
+		payload += "="
+	}
+
+	decoded, err := base64.URLEncoding.DecodeString(payload)
+	if err != nil {
+		return ""
+	}
+
+	var claims map[string]interface{}
+	if err := json.Unmarshal(decoded, &claims); err != nil {
+		return ""
+	}
+
+	// JWT standard: Subject je "sub" claim — stakeholders servis postavlja username kao Subject
+	if sub, ok := claims["sub"].(string); ok && sub != "" {
+		return sub
+	}
+	return ""
+}
+
+// withUsername je middleware koji iz JWT-a izvlači username i dodaje X-Username header
+func withUsername(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username := extractUsernameFromJWT(r.Header.Get("Authorization"))
+		if username != "" {
+			r.Header.Set("X-Username", username)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func main() {
+	stakeholdersURL := getEnvOrDefault("STAKEHOLDERS_URL", "http://localhost:8081")
+	blogURL         := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
+	followersURL    := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
+	toursURL        := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
+
 	stakeholdersProxy := newReverseProxy(stakeholdersURL)
-	blogProxy := newReverseProxy(blogURL)
-	followersProxy := newReverseProxy(followersURL)
-	toursProxy := newReverseProxy(toursURL)
+	blogProxy         := newReverseProxy(blogURL)
+	followersProxy    := newReverseProxy(followersURL)
+	toursProxy        := newReverseProxy(toursURL)
 
 	mux := http.NewServeMux()
 
 	// --- Stakeholders servis ---
-	// Front i backend koriste /stakeholders/* rute, pa gateway ne sme da menja prefiks.
-
-	mux.HandleFunc("/stakeholders", func(w http.ResponseWriter, r *http.Request) {
-    	log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
-    	stakeholdersProxy.ServeHTTP(w, r)
-    })
-
-	mux.HandleFunc("/stakeholders/", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/stakeholders", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
 		stakeholdersProxy.ServeHTTP(w, r)
-	})
+	})))
+	mux.Handle("/stakeholders/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
+		stakeholdersProxy.ServeHTTP(w, r)
+	})))
 
-	// Kompatibilnost za starije klijente koji još šalju /auth/*, /accounts/* ili /profiles/*.
 	mux.HandleFunc("/auth/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> stakeholders (legacy /auth)", r.Method, r.URL.Path)
 		r.URL.Path = strings.Replace(r.URL.Path, "/auth/", "/stakeholders/", 1)
@@ -87,57 +135,54 @@ func main() {
 	mux.HandleFunc("/profiles/", rewritePrefix("/profiles/", "/stakeholders/profile/", stakeholdersProxy))
 
 	// --- Blog servis ---
-	mux.HandleFunc("/blog/", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/blog", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> blog", r.Method, r.URL.Path)
 		blogProxy.ServeHTTP(w, r)
-	})
+	})))
+	mux.Handle("/blog/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> blog", r.Method, r.URL.Path)
+		blogProxy.ServeHTTP(w, r)
+	})))
 
 	// --- Followers servis ---
-	mux.HandleFunc("/followers/", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/followers/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> followers", r.Method, r.URL.Path)
 		followersProxy.ServeHTTP(w, r)
-	})
+	})))
 
 	// --- Tours servis ---
-
-	mux.HandleFunc("/tours", func(w http.ResponseWriter, r *http.Request) {
-    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
-    	toursProxy.ServeHTTP(w, r)
-    })
-
-	mux.HandleFunc("/tours/", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/tours", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
 		toursProxy.ServeHTTP(w, r)
-	})
-
-    mux.HandleFunc("/keypoints", func(w http.ResponseWriter, r *http.Request) {
-    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
-    	toursProxy.ServeHTTP(w, r)
-    })
-
-	mux.HandleFunc("/keypoints/", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	mux.Handle("/tours/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
 		toursProxy.ServeHTTP(w, r)
-	})
-    mux.HandleFunc("/reviews", func(w http.ResponseWriter, r *http.Request) {
-    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
-    	toursProxy.ServeHTTP(w, r)
-    })
-
-	mux.HandleFunc("/reviews/", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	mux.Handle("/keypoints", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
 		toursProxy.ServeHTTP(w, r)
-	})
+	})))
+	mux.Handle("/keypoints/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		toursProxy.ServeHTTP(w, r)
+	})))
+	mux.Handle("/reviews", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+		toursProxy.ServeHTTP(w, r)
+	})))
+	mux.Handle("/reviews/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		toursProxy.ServeHTTP(w, r)
+	})))
+	mux.Handle("/tourist-position", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+		toursProxy.ServeHTTP(w, r)
+	})))
+	mux.Handle("/tourist-position/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+		toursProxy.ServeHTTP(w, r)
+	})))
 
-    mux.HandleFunc("/tourist-position", func(w http.ResponseWriter, r *http.Request) {
-    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
-    	toursProxy.ServeHTTP(w, r)
-    })
-
-    mux.HandleFunc("/tourist-position/", func(w http.ResponseWriter, r *http.Request) {
-    	log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
-    	toursProxy.ServeHTTP(w, r)
-    })
-
-	// Fallback - nepoznata ruta
+	// Fallback
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] Nepoznata ruta: %s %s", r.Method, r.URL.Path)
 		http.Error(w, `{"error": "Ruta nije pronađena"}`, http.StatusNotFound)
@@ -145,11 +190,10 @@ func main() {
 
 	port := getEnvOrDefault("PORT", "8080")
 	log.Printf("API Gateway pokrenut na portu %s", port)
-	log.Printf("  /stakeholders/*                  -> %s", stakeholdersURL)
-	log.Printf("  /auth/*, /accounts/*, /profiles/* -> %s (legacy compat)", stakeholdersURL)
-	log.Printf("  /blog/*                            -> %s", blogURL)
-	log.Printf("  /followers/*                       -> %s", followersURL)
-	log.Printf("  /tours/*                           -> %s", toursURL)
+	log.Printf("  /stakeholders/* -> %s", stakeholdersURL)
+	log.Printf("  /blog/*         -> %s", blogURL)
+	log.Printf("  /followers/*    -> %s", followersURL)
+	log.Printf("  /tours/*        -> %s", toursURL)
 
 	if err := http.ListenAndServe(":"+port, corsMiddleware(mux)); err != nil {
 		log.Fatalf("Gateway nije mogao da se pokrene: %v", err)
