@@ -19,7 +19,7 @@
           </button>
           <div class="header-title">
             <span class="header-tag">BLOG</span>
-            <h1>Priče & Putopisi</h1>
+            <h1>Priče &amp; Putopisi</h1>
           </div>
         </div>
         <button class="btn-new" (click)="openCreateModal()" *ngIf="currentUser">
@@ -59,13 +59,19 @@
           *ngFor="let item of blogs"
           (click)="openBlog(item)"
         >
-          <div class="card-img-wrap" *ngIf="item.blog.imageUrls && item.blog.imageUrls.length > 0">
-            <img [src]="item.blog.imageUrls[0]" [alt]="item.blog.title" class="card-img" />
+          <!-- Slika: prikazujemo samo ako URL izgleda validno -->
+          <div class="card-img-wrap" *ngIf="item.blog.imageUrls && item.blog.imageUrls.length > 0 && isValidUrl(item.blog.imageUrls[0])">
+            <img
+              [src]="item.blog.imageUrls[0]"
+              [alt]="item.blog.title"
+              class="card-img"
+              (error)="onImgError($event)"
+            />
             <div class="img-count" *ngIf="item.blog.imageUrls.length > 1">
               +{{ item.blog.imageUrls.length - 1 }}
             </div>
           </div>
-          <div class="card-no-img" *ngIf="!item.blog.imageUrls || item.blog.imageUrls.length === 0">
+          <div class="card-no-img" *ngIf="!item.blog.imageUrls || item.blog.imageUrls.length === 0 || !isValidUrl(item.blog.imageUrls[0])">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
           </div>
   
@@ -104,9 +110,14 @@
           </button>
   
           <!-- Hero images -->
-          <div class="detail-gallery" *ngIf="selectedBlog.blog.imageUrls && selectedBlog.blog.imageUrls.length > 0">
+          <div class="detail-gallery" *ngIf="selectedBlog.blog.imageUrls && selectedBlog.blog.imageUrls.length > 0 && isValidUrl(selectedBlog.blog.imageUrls[0])">
             <div class="gallery-main">
-              <img [src]="selectedBlog.blog.imageUrls[activeImageIndex]" [alt]="selectedBlog.blog.title" class="gallery-img" />
+              <img
+                [src]="selectedBlog.blog.imageUrls[activeImageIndex]"
+                [alt]="selectedBlog.blog.title"
+                class="gallery-img"
+                (error)="onImgError($event)"
+              />
             </div>
             <div class="gallery-thumbs" *ngIf="selectedBlog.blog.imageUrls.length > 1">
               <img
@@ -115,6 +126,7 @@
                 [class.active]="i === activeImageIndex"
                 (click)="activeImageIndex = i"
                 class="thumb-img"
+                (error)="onImgError($event)"
               />
             </div>
           </div>
@@ -226,7 +238,12 @@
     <div class="modal-backdrop" *ngIf="showCreateModal" (click)="closeCreateModal()">
       <div class="modal" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h2>Novi blog</h2>
+          <div class="modal-header-left">
+            <div class="modal-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+            <h2>Novi blog</h2>
+          </div>
           <button class="modal-close" (click)="closeCreateModal()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
@@ -234,18 +251,27 @@
   
         <div class="modal-body">
           <div class="form-group">
-            <label>Naslov *</label>
-            <input type="text" [(ngModel)]="newBlog.title" placeholder="Naslov bloga..." class="form-input" />
+            <label>Naslov <span class="required">*</span></label>
+            <input type="text" [(ngModel)]="newBlog.title" placeholder="Unesi naslov bloga..." class="form-input" />
           </div>
   
           <div class="form-group">
             <label>
-              Opis (Markdown podržan)
-              <a class="md-link" href="https://www.markdownguide.org/basic-syntax/" target="_blank">Markdown sintaksa →</a>
+              Opis
+              <a class="md-link" href="https://www.markdownguide.org/basic-syntax/" target="_blank">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Markdown sintaksa
+              </a>
             </label>
             <div class="md-editor-tabs">
-              <button [class.active]="mdTab === 'write'" (click)="mdTab = 'write'">Piši</button>
-              <button [class.active]="mdTab === 'preview'" (click)="mdTab = 'preview'">Pregled</button>
+              <button [class.active]="mdTab === 'write'" (click)="mdTab = 'write'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Piši
+              </button>
+              <button [class.active]="mdTab === 'preview'" (click)="mdTab = 'preview'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Pregled
+              </button>
             </div>
             <textarea
               *ngIf="mdTab === 'write'"
@@ -262,21 +288,29 @@
           </div>
   
           <div class="form-group">
-            <label>Slike (URL-ovi, jedan po liniji)</label>
+            <label>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Slike <span class="label-hint">(URL-ovi, jedan po liniji)</span>
+            </label>
             <textarea
               [(ngModel)]="imageUrlsRaw"
-              placeholder="https://primer.com/slika1.jpg&#10;https://primer.com/slika2.jpg"
+              placeholder="https://primjer.com/slika1.jpg&#10;https://primjer.com/slika2.jpg"
               class="form-textarea"
               rows="3"
             ></textarea>
           </div>
   
-          <div class="form-error" *ngIf="createError">{{ createError }}</div>
+          <div class="form-error" *ngIf="createError">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            {{ createError }}
+          </div>
         </div>
   
         <div class="modal-footer">
           <button class="btn-cancel" (click)="closeCreateModal()">Otkaži</button>
           <button class="btn-primary" (click)="createBlog()" [disabled]="!newBlog.title.trim() || isCreating">
+            <svg *ngIf="!isCreating" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            <div *ngIf="isCreating" class="btn-spinner"></div>
             {{ isCreating ? 'Kreiranje...' : 'Objavi blog' }}
           </button>
         </div>

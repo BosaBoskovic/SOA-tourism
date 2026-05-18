@@ -79,17 +79,19 @@ export class BlogComponent implements OnInit {
 
   openBlog(item: BlogResponse): void {
     this.isLoading = true;
+    this.cdr.detectChanges();
     this.blogService.getBlogById(item.blog.id).subscribe({
       next: (data) => {
         this.selectedBlog = data;
         this.activeImageIndex = 0;
         this.isLoading = false;
         window.scrollTo(0, 0);
+        this.cdr.detectChanges();
       },
       error: () => {
-        // fallback: prikaži bez HTML renderinga
         this.selectedBlog = item;
         this.isLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -121,8 +123,9 @@ export class BlogComponent implements OnInit {
           }
         }
         this.isLiking = false;
+        this.cdr.detectChanges();
       },
-      error: () => { this.isLiking = false; }
+      error: () => { this.isLiking = false; this.cdr.detectChanges(); }
     });
   }
 
@@ -136,12 +139,14 @@ export class BlogComponent implements OnInit {
         this.selectedBlog!.blog.comments = res.blog.comments;
         this.newCommentText = '';
         this.isSubmittingComment = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.commentError = err.status === 403
           ? 'Moraš pratiti autora da bi komentarisao/la.'
           : 'Greška pri slanju komentara.';
         this.isSubmittingComment = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -166,9 +171,11 @@ export class BlogComponent implements OnInit {
       next: (res) => {
         this.selectedBlog!.blog.comments = res.blog.comments;
         this.editingCommentId = null;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.commentError = 'Greška pri izmjeni komentara.';
+        this.cdr.detectChanges();
       }
     });
   }
@@ -194,7 +201,7 @@ export class BlogComponent implements OnInit {
     const imageUrls = this.imageUrlsRaw
       .split('\n')
       .map(u => u.trim())
-      .filter(u => u.length > 0);
+      .filter(u => u.length > 0 && this.isValidUrl(u)); // filtriramo nevažeće URL-ove
 
     this.blogService.createBlog({
       title: this.newBlog.title.trim(),
@@ -202,24 +209,58 @@ export class BlogComponent implements OnInit {
       imageUrls
     }).subscribe({
       next: (res) => {
-        this.blogs.unshift(res);
+        this.blogs = [res, ...this.blogs]; // novi array da Angular detektuje promjenu
         this.isCreating = false;
         this.closeCreateModal();
+        this.cdr.detectChanges();
       },
       error: () => {
         this.createError = 'Greška pri kreiranju bloga.';
         this.isCreating = false;
+        this.cdr.detectChanges();
       }
     });
   }
 
   // ── HELPERS ───────────────────────────────────────────────────────
+
+  /**
+   * Provjerava da li string izgleda kao validan URL sa http/https protokolom.
+   * Sprečava greške u konzoli kada korisnici unesu nasumičan tekst umjesto URL-ova.
+   */
+  isValidUrl(url: string): boolean {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Handler za greške pri učitavanju slika.
+   * Sakriva <img> element ako slika ne može da se učita (404, CORS, itd.).
+   */
+  onImgError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      // Sakrij sliku i prikaži placeholder kontejner
+      img.style.display = 'none';
+      // Pokušaj pronaći roditeljski wrapper i dodati fallback klasu
+      const wrapper = img.closest('.card-img-wrap, .gallery-main');
+      if (wrapper) {
+        wrapper.classList.add('img-load-error');
+      }
+    }
+  }
+
   getExcerpt(md: string): string {
     if (!md) return '';
     // Strip markdown syntax for preview
     const plain = md
       .replace(/#{1,6}\s/g, '')
-      .replace(/\*\*|__|\*|_|~~|`/g, '')
+      .replace(/\*\*|__|\\*|_|~~|`/g, '')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
       .replace(/^\s*[-*+>\d.]\s/gm, '')
