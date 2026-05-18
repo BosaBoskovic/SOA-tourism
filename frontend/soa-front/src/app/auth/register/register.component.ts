@@ -51,17 +51,24 @@ export class RegisterComponent {
   onSubmit(): void {
     this.submitted = true;
     this.error = '';
-
-    if (this.registerForm.invalid) {
-      return;
-    }
-
+    if (this.registerForm.invalid) return;
+  
     this.loading = true;
     const { confirmPassword, ...registerData } = this.registerForm.value;
-
+  
     this.authService.register(registerData).subscribe({
       next: () => {
-        this.router.navigate(['/dashboard']);
+        // Backend ne vraća token, odmah uradi login
+        this.authService.login({
+          usernameOrEmail: registerData.username,
+          password: registerData.password
+        }).subscribe({
+          next: () => this.router.navigate(['/dashboard']),
+          error: () => {
+            // Login propao, idi na login stranicu
+            this.router.navigate(['/login']);
+          }
+        });
       },
       error: (err) => {
         this.error = err.error?.error || 'Greška pri registraciji';

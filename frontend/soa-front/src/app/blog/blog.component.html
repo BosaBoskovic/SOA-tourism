@@ -1,0 +1,320 @@
+<!-- 
+  BLOG COMPONENT - Tourism App
+  Radi kao standalone Angular HTML template.
+  Pretpostavke:
+    - currentUser: { username, role } injektovan iz parent-a ili AuthService
+    - API gateway na http://localhost:8080
+    - Auth token u localStorage pod 'token'
+    - X-Username header šalje gateway na osnovu tokena
+-->
+
+<div class="blog-root">
+
+    <!-- ═══════════════════════════════════════════════════════ HEADER -->
+    <header class="blog-header">
+      <div class="header-inner">
+        <div class="header-left">
+          <button class="back-btn" (click)="goBack()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <div class="header-title">
+            <span class="header-tag">BLOG</span>
+            <h1>Priče &amp; Putopisi</h1>
+          </div>
+        </div>
+        <button class="btn-new" (click)="openCreateModal()" *ngIf="currentUser">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Novi blog
+        </button>
+      </div>
+    </header>
+  
+    <!-- ═══════════════════════════════════════════════════════ CONTENT -->
+    <div class="blog-layout">
+  
+      <!-- LOADING STATE -->
+      <div class="loading-state" *ngIf="isLoading">
+        <div class="spinner"></div>
+        <p>Učitavanje blogova...</p>
+      </div>
+  
+      <!-- ERROR STATE -->
+      <div class="error-state" *ngIf="error && !isLoading">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <p>{{ error }}</p>
+        <button class="btn-retry" (click)="loadBlogs()">Pokušaj ponovo</button>
+      </div>
+  
+      <!-- EMPTY STATE -->
+      <div class="empty-state" *ngIf="!isLoading && !error && blogs.length === 0">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+        <h3>Nema blogova</h3>
+        <p>Zaprati korisnike da bi vidio/la njihove blogove ili kreiraj prvi!</p>
+      </div>
+  
+      <!-- BLOG LIST -->
+      <div class="blogs-grid" *ngIf="!isLoading && !error && blogs.length > 0 && !selectedBlog">
+        <article
+          class="blog-card"
+          *ngFor="let item of blogs"
+          (click)="openBlog(item)"
+        >
+          <!-- Slika: prikazujemo samo ako URL izgleda validno -->
+          <div class="card-img-wrap" *ngIf="item.blog.imageUrls && item.blog.imageUrls.length > 0 && isValidUrl(item.blog.imageUrls[0])">
+            <img
+              [src]="item.blog.imageUrls[0]"
+              [alt]="item.blog.title"
+              class="card-img"
+              (error)="onImgError($event)"
+            />
+            <div class="img-count" *ngIf="item.blog.imageUrls.length > 1">
+              +{{ item.blog.imageUrls.length - 1 }}
+            </div>
+          </div>
+          <div class="card-no-img" *ngIf="!item.blog.imageUrls || item.blog.imageUrls.length === 0 || !isValidUrl(item.blog.imageUrls[0])">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+          </div>
+  
+          <div class="card-body">
+            <div class="card-meta">
+              <span class="author-chip">
+                <span class="author-avatar">{{ item.blog.authorUsername.charAt(0).toUpperCase() }}</span>
+                {{ item.blog.authorUsername }}
+              </span>
+              <span class="card-date">{{ item.blog.createdAt | date:'d. MMM yyyy.' }}</span>
+            </div>
+            <h2 class="card-title">{{ item.blog.title }}</h2>
+            <p class="card-excerpt">{{ getExcerpt(item.blog.descriptionMarkdown) }}</p>
+            <div class="card-footer">
+              <span class="stat">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                {{ item.likesCount }}
+              </span>
+              <span class="stat">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                {{ item.blog.comments.length }}
+              </span>
+              <span class="read-more">Čitaj više →</span>
+            </div>
+          </div>
+        </article>
+      </div>
+  
+      <!-- ═══════════════════════════════════════════════════════ BLOG DETAIL -->
+      <div class="blog-detail" *ngIf="selectedBlog && !isLoading">
+        <div class="detail-inner">
+  
+          <!-- Back to list -->
+          <button class="back-to-list" (click)="closeBlog()">
+            ← Svi blogovi
+          </button>
+  
+          <!-- Hero images -->
+          <div class="detail-gallery" *ngIf="selectedBlog.blog.imageUrls && selectedBlog.blog.imageUrls.length > 0 && isValidUrl(selectedBlog.blog.imageUrls[0])">
+            <div class="gallery-main">
+              <img
+                [src]="selectedBlog.blog.imageUrls[activeImageIndex]"
+                [alt]="selectedBlog.blog.title"
+                class="gallery-img"
+                (error)="onImgError($event)"
+              />
+            </div>
+            <div class="gallery-thumbs" *ngIf="selectedBlog.blog.imageUrls.length > 1">
+              <img
+                *ngFor="let url of selectedBlog.blog.imageUrls; let i = index"
+                [src]="url"
+                [class.active]="i === activeImageIndex"
+                (click)="activeImageIndex = i"
+                class="thumb-img"
+                (error)="onImgError($event)"
+              />
+            </div>
+          </div>
+  
+          <!-- Blog meta -->
+          <div class="detail-meta">
+            <div class="detail-author">
+              <span class="author-avatar lg">{{ selectedBlog.blog.authorUsername.charAt(0).toUpperCase() }}</span>
+              <div>
+                <strong>{{ selectedBlog.blog.authorUsername }}</strong>
+                <span class="detail-date">{{ selectedBlog.blog.createdAt | date:'d. MMMM yyyy. HH:mm' }}</span>
+              </div>
+            </div>
+            <button
+              class="like-btn"
+              [class.liked]="selectedBlog.likedByCurrentUser"
+              (click)="toggleLike()"
+              [disabled]="isLiking"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" [attr.fill]="selectedBlog.likedByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+              </svg>
+              {{ selectedBlog.likesCount }} {{ selectedBlog.likesCount === 1 ? 'lajk' : 'lajkova' }}
+            </button>
+          </div>
+  
+          <h1 class="detail-title">{{ selectedBlog.blog.title }}</h1>
+  
+          <!-- Rendered markdown content -->
+          <div class="detail-content" [innerHTML]="selectedBlog.descriptionHtml || markdownToHtml(selectedBlog.blog.descriptionMarkdown)"></div>
+  
+          <!-- ══ KOMENTARI -->
+          <section class="comments-section">
+            <h3 class="comments-heading">
+              Komentari
+              <span class="comments-count">{{ selectedBlog.blog.comments.length }}</span>
+            </h3>
+  
+            <!-- Comment form -->
+            <div class="comment-form" *ngIf="currentUser">
+              <span class="author-avatar">{{ currentUser.username.charAt(0).toUpperCase() }}</span>
+              <div class="comment-input-wrap">
+                <textarea
+                  [(ngModel)]="newCommentText"
+                  placeholder="Napiši komentar..."
+                  class="comment-textarea"
+                  rows="2"
+                  (keydown.ctrl.enter)="submitComment()"
+                ></textarea>
+                <div class="comment-actions">
+                  <span class="hint">Ctrl+Enter za slanje</span>
+                  <button class="btn-submit" (click)="submitComment()" [disabled]="!newCommentText.trim() || isSubmittingComment">
+                    {{ isSubmittingComment ? 'Slanje...' : 'Objavi' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+  
+            <!-- No comments -->
+            <p class="no-comments" *ngIf="selectedBlog.blog.comments.length === 0">
+              Budi prvi koji komentariše!
+            </p>
+  
+            <!-- Comment list -->
+            <div class="comment-list">
+              <div class="comment-item" *ngFor="let comment of selectedBlog.blog.comments">
+                <span class="author-avatar">{{ comment.authorUsername.charAt(0).toUpperCase() }}</span>
+                <div class="comment-body">
+                  <div class="comment-header">
+                    <strong>{{ comment.authorUsername }}</strong>
+                    <span class="comment-date">{{ comment.createdAt | date:'d. MMM yyyy. HH:mm' }}</span>
+                    <span class="edited-badge" *ngIf="comment.lastModifiedAt">izmijenjen</span>
+                  </div>
+  
+                  <!-- Edit mode -->
+                  <div *ngIf="editingCommentId === comment.id; else viewMode">
+                    <textarea
+                      [(ngModel)]="editCommentText"
+                      class="comment-textarea edit-textarea"
+                      rows="2"
+                    ></textarea>
+                    <div class="comment-actions">
+                      <button class="btn-cancel" (click)="cancelEdit()">Otkaži</button>
+                      <button class="btn-submit small" (click)="saveEdit(comment.id)" [disabled]="!editCommentText.trim()">Sačuvaj</button>
+                    </div>
+                  </div>
+  
+                  <ng-template #viewMode>
+                    <p class="comment-text">{{ comment.text }}</p>
+                    <button
+                      class="btn-edit-comment"
+                      *ngIf="currentUser && currentUser.username === comment.authorUsername"
+                      (click)="startEdit(comment)"
+                    >
+                      Izmijeni
+                    </button>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+  
+            <div class="comment-error" *ngIf="commentError">{{ commentError }}</div>
+          </section>
+        </div>
+      </div>
+    </div>
+  
+    <!-- ═══════════════════════════════════════════════════════ CREATE MODAL -->
+    <div class="modal-backdrop" *ngIf="showCreateModal" (click)="closeCreateModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-header-left">
+            <div class="modal-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+            <h2>Novi blog</h2>
+          </div>
+          <button class="modal-close" (click)="closeCreateModal()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+  
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Naslov <span class="required">*</span></label>
+            <input type="text" [(ngModel)]="newBlog.title" placeholder="Unesi naslov bloga..." class="form-input" />
+          </div>
+  
+          <div class="form-group">
+            <label>
+              Opis
+              <a class="md-link" href="https://www.markdownguide.org/basic-syntax/" target="_blank">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Markdown sintaksa
+              </a>
+            </label>
+            <div class="md-editor-tabs">
+              <button [class.active]="mdTab === 'write'" (click)="mdTab = 'write'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Piši
+              </button>
+              <button [class.active]="mdTab === 'preview'" (click)="mdTab = 'preview'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Pregled
+              </button>
+            </div>
+            <textarea
+              *ngIf="mdTab === 'write'"
+              [(ngModel)]="newBlog.descriptionMarkdown"
+              placeholder="# Naslov&#10;&#10;Opis u **markdown** formatu..."
+              class="form-textarea md-textarea"
+              rows="10"
+            ></textarea>
+            <div
+              *ngIf="mdTab === 'preview'"
+              class="md-preview"
+              [innerHTML]="markdownToHtml(newBlog.descriptionMarkdown)"
+            ></div>
+          </div>
+  
+          <div class="form-group">
+            <label>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Slike <span class="label-hint">(URL-ovi, jedan po liniji)</span>
+            </label>
+            <textarea
+              [(ngModel)]="imageUrlsRaw"
+              placeholder="https://primjer.com/slika1.jpg&#10;https://primjer.com/slika2.jpg"
+              class="form-textarea"
+              rows="3"
+            ></textarea>
+          </div>
+  
+          <div class="form-error" *ngIf="createError">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            {{ createError }}
+          </div>
+        </div>
+  
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="closeCreateModal()">Otkaži</button>
+          <button class="btn-primary" (click)="createBlog()" [disabled]="!newBlog.title.trim() || isCreating">
+            <svg *ngIf="!isCreating" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            <div *ngIf="isCreating" class="btn-spinner"></div>
+            {{ isCreating ? 'Kreiranje...' : 'Objavi blog' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  
+  </div>

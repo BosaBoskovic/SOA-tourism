@@ -7,6 +7,8 @@ import { TourListComponent } from './tours/tour-list/tour-list.component';
 import { TourCreateComponent } from './tours/tour-create/tour-create.component';
 import { TourDetailComponent } from './tours/tour-detail/tour-detail.component';
 import { PositionSimulatorComponent } from './position-simulator/position-simulator.component';
+import { BlogComponent } from './blog/blog.component';
+
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
@@ -18,4 +20,5 @@ export const routes: Routes = [
   { path: 'tours/new', component: TourCreateComponent },
   { path: 'tours/:id', component: TourDetailComponent },
   { path: 'position-simulator', component: PositionSimulatorComponent},
+  { path: 'blog', component: BlogComponent },
 ];
