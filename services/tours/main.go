@@ -78,6 +78,8 @@ func main() {
 	r.HandleFunc("/tours/{id}", tourHandler.GetByID).Methods(http.MethodGet)
 	r.HandleFunc("/tours/{id}", tourHandler.Update).Methods(http.MethodPut)
 	r.HandleFunc("/tours/{id}/publish", tourHandler.Publish).Methods(http.MethodPut)
+	r.HandleFunc("/tours/{id}/archive", tourHandler.Archive).Methods(http.MethodPut)
+	r.HandleFunc("/tours/{id}/activate", tourHandler.Activate).Methods(http.MethodPut)
 
 	// KeyPoints
 	r.HandleFunc("/keypoints", keyPointHandler.Create).Methods(http.MethodPost)

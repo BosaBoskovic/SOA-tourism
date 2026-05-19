@@ -102,3 +102,29 @@ func (h *TourHandler) Publish(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, tour)
 }
+
+// PUT /tours/{id}/archive
+func (h *TourHandler) Archive(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	tour, err := h.service.Archive(id)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, tour)
+}
+
+// PUT /tours/{id}/activate
+func (h *TourHandler) Activate(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	tour, err := h.service.Activate(id)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, tour)
+}
