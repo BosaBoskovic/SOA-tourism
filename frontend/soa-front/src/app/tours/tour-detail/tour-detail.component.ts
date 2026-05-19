@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, PLATFORM_ID, Inject,  ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { TourService, Tour, KeyPoint } from '../../services/tour.service';
+import { TourService, Tour, TourDuration, TourPreview, KeyPoint, TransportType } from '../../services/tour.service';
 import { ReviewService, Review } from '../../services/review.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -14,7 +14,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
   styleUrl: './tour-detail.component.css'
 })
 export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
-  tour: Tour | null = null;
+  tour: Tour | TourPreview | null = null;
   keyPoints: KeyPoint[] = [];
   reviews: Review[] = [];
   currentUser: any;
@@ -33,6 +33,9 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   kpForm: FormGroup;
   kpLoading = false;
   kpError = '';
+
+  durations: TourDuration[] = [];
+  durationForm: FormGroup;
 
   reviewForm: FormGroup;
   reviewLoading = false;
@@ -60,44 +63,27 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
       comment: ['', Validators.required],
       tourVisitDate: ['', Validators.required]
     });
+
+    this.durationForm = this.fb.group({
+      transport: ['walk' as TransportType, Validators.required],
+      minutes: [30, [Validators.required, Validators.min(1)]]
+    });
   }
 
   ngOnInit(): void {
-  this.authService.currentUser$.subscribe(u => {
-    this.currentUser = u;
-    this.cdr.detectChanges();
-  });
+    const id = this.route.snapshot.paramMap.get('id')!;
 
-  const id = this.route.snapshot.paramMap.get('id')!;
+    this.authService.currentUser$.subscribe(u => {
+      this.currentUser = u;
+      this.cdr.detectChanges();
 
-  this.tourService.getTourById(id).subscribe({
-    next: (tour) => {
-      console.log('TOUR DETAIL:', tour);
-
-      this.zone.run(() => {
-        this.tour = tour;
-        this.loading = false;
-        this.cdr.detectChanges();
-
-        this.loadKeyPoints(id);
-        this.loadReviews(id);
-
-        if (isPlatformBrowser(this.platformId)) {
-          setTimeout(() => this.initMap(), 200);
-        }
-      });
-    },
-    error: (err) => {
-      console.error('TOUR DETAIL ERROR:', err);
-
-      this.zone.run(() => {
-        this.error = err.error?.error || 'Tura nije pronađena.';
-        this.loading = false;
-        this.cdr.detectChanges();
-      });
-    }
-  });
-}
+      if (u?.role === 'tourist') {
+        this.loadTourPreview(id);
+      } else {
+        this.loadTourDetail(id);
+      }
+    });
+  }
 
   async ngAfterViewInit(): Promise<void> {
     //if (isPlatformBrowser(this.platformId)) {
@@ -139,12 +125,14 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
       attribution: '© OpenStreetMap contributors'
     }).addTo(this.map);
 
-    this.map.on('click', (e: any) => {
-      if (this.tempMarker) this.map.removeLayer(this.tempMarker);
-      this.selectedLatLng = { lat: e.latlng.lat, lng: e.latlng.lng };
-      this.tempMarker = this.L.marker(e.latlng).addTo(this.map)
-        .bindPopup('Nova ključna tačka').openPopup();
-    });
+    if (this.canEditKeyPoints()) {
+      this.map.on('click', (e: any) => {
+        if (this.tempMarker) this.map.removeLayer(this.tempMarker);
+        this.selectedLatLng = { lat: e.latlng.lat, lng: e.latlng.lng };
+        this.tempMarker = this.L.marker(e.latlng).addTo(this.map)
+          .bindPopup('Nova ključna tačka').openPopup();
+      });
+    }
 
     // Ako su ključne tačke već učitane prije mape, nacrtaj ih
     if (this.keyPoints.length > 0) {
@@ -217,6 +205,73 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   });
 }
+
+  private loadTourDetail(id: string): void {
+    this.tourService.getTourById(id).subscribe({
+      next: (tour) => {
+        console.log('TOUR DETAIL:', tour);
+
+        this.zone.run(() => {
+          this.tour = tour;
+          this.durations = tour.durations ?? [];
+          this.loading = false;
+          this.cdr.detectChanges();
+
+          this.loadKeyPoints(id);
+          this.loadReviews(id);
+
+          if (isPlatformBrowser(this.platformId)) {
+            setTimeout(() => this.initMap(), 200);
+          }
+        });
+      },
+      error: (err) => {
+        console.error('TOUR DETAIL ERROR:', err);
+
+        this.zone.run(() => {
+          this.error = err.error?.error || 'Tura nije pronađena.';
+          this.loading = false;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  private loadTourPreview(id: string): void {
+    this.tourService.getAllTours().subscribe({
+      next: (tours) => {
+        const preview = tours.find(tour => tour.id === id);
+
+        this.zone.run(() => {
+          if (!preview) {
+            this.error = 'Tura nije pronađena.';
+            this.loading = false;
+            this.cdr.detectChanges();
+            return;
+          }
+
+          this.tour = preview;
+          this.durations = [];
+          this.keyPoints = preview.firstKeyPoint ? [preview.firstKeyPoint] : [];
+          this.loading = false;
+          this.cdr.detectChanges();
+
+          this.loadReviews(id);
+
+          if (isPlatformBrowser(this.platformId)) {
+            setTimeout(() => this.initMap(), 200);
+          }
+        });
+      },
+      error: (err) => {
+        this.zone.run(() => {
+          this.error = err.error?.error || 'Tura nije pronađena.';
+          this.loading = false;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
 
   loadReviews(tourId: string): void {
   this.reviewService.getReviewsByTour(tourId).subscribe({
@@ -354,7 +409,7 @@ cancelEditKeyPoint(): void {
   });
 }
 
-updateKeyPoint(): void {
+  updateKeyPoint(): void {
   if (!this.editingKeyPoint || !this.selectedLatLng) return;
 
   this.kpLoading = true;
@@ -420,6 +475,52 @@ updateKeyPoint(): void {
   });
 }
 
+  addDuration(): void {
+    if (!this.tour || !this.hasStatus(this.tour)) return;
+    if (this.durationForm.invalid) return;
+
+    const transport = this.durationForm.value.transport as TransportType;
+    const minutes = Number(this.durationForm.value.minutes);
+
+    const existingIndex = this.durations.findIndex(d => d.transport === transport);
+    if (existingIndex >= 0) {
+      this.durations[existingIndex] = { transport, minutes };
+    } else {
+      this.durations = [...this.durations, { transport, minutes }];
+    }
+
+    this.persistDurations();
+  }
+
+  removeDuration(transport: TransportType): void {
+    if (!this.tour || !this.hasStatus(this.tour)) return;
+
+    this.durations = this.durations.filter(d => d.transport !== transport);
+    this.persistDurations();
+  }
+
+  private persistDurations(): void {
+    if (!this.tour || !this.hasStatus(this.tour)) return;
+
+    this.tourService.updateTour(this.tour.id, {
+      name: this.tour.name,
+      description: this.tour.description,
+      difficulty: this.tour.difficulty,
+      tags: this.tour.tags,
+      durations: this.durations
+    }).subscribe({
+      next: (updated) => {
+        this.tour = updated;
+        this.durations = updated.durations ?? [];
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.kpError = err.error?.error || 'Greška pri čuvanju trajanja ture.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
   submitReview(): void {
     if (this.reviewForm.invalid) return;
     this.reviewLoading = true;
@@ -450,5 +551,11 @@ updateKeyPoint(): void {
   isGuide(): boolean { return this.currentUser?.role === 'guide'; }
   isTourist(): boolean { return this.currentUser?.role === 'tourist'; }
   isOwner(): boolean { return this.tour?.authorId === this.currentUser?.username; }
+  hasStatus(tour: Tour | TourPreview): tour is Tour { return (tour as Tour).status !== undefined; }
+  isDraft(): boolean { return this.tour != null && this.hasStatus(this.tour) && this.tour.status === 'draft'; }
+  canEditKeyPoints(): boolean { return this.isOwner() && this.isDraft(); }
+  transportLabel(transport: TransportType): string {
+    return { walk: 'Peške', bike: 'Bicikl', car: 'Automobil' }[transport] ?? transport;
+  }
   starsArray(n: number): number[] { return Array(n).fill(0); }
 }

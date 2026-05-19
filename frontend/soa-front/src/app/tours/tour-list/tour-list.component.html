@@ -25,7 +25,11 @@
     <div *ngFor="let tour of tours" class="tour-card">
       <div class="tour-card-header">
         <h3>{{ tour.name }}</h3>
-        <span class="badge" [class]="'badge-' + tour.status">
+        <span
+          *ngIf="currentUser?.role === 'guide' && hasStatus(tour)"
+          class="badge"
+          [class]="'badge-' + tour.status"
+        >
           {{ tour.status }}
         </span>
       </div>
@@ -49,14 +53,32 @@
           Otvori
         </a>
 
-            <button
-      *ngIf="currentUser?.role === 'guide' && tour.status === 'draft'"
-      type="button"
-      class="btn btn-publish"
-      (click)="publishTour(tour)"
-    >
-      Objavi turu
-    </button>
+                <button
+                  *ngIf="currentUser?.role === 'guide' && hasStatus(tour) && tour.status === 'draft'"
+                  type="button"
+                  class="btn btn-publish"
+                  (click)="publishTour(tour)"
+                >
+                  Objavi turu
+                </button>
+
+                <button
+                  *ngIf="currentUser?.role === 'guide' && hasStatus(tour) && tour.status === 'published'"
+                  type="button"
+                  class="btn btn-outline"
+                  (click)="archiveTour(tour)"
+                >
+                  Arhiviraj
+                </button>
+
+                <button
+                  *ngIf="currentUser?.role === 'guide' && hasStatus(tour) && tour.status === 'archived'"
+                  type="button"
+                  class="btn btn-outline"
+                  (click)="activateTour(tour)"
+                >
+                  Aktiviraj
+                </button>
 
         <button
           *ngIf="currentUser?.role === 'tourist'"

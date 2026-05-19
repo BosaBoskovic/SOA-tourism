@@ -9,17 +9,60 @@
         <h2>{{ tour.name }}</h2>
         <p class="tour-desc">{{ tour.description }}</p>
         <div class="tour-meta">
-          <span class="badge" [class]="'badge-' + tour.status">{{ tour.status }}</span>
+          <span *ngIf="hasStatus(tour)" class="badge" [class]="'badge-' + tour.status">{{ tour.status }}</span>
           <span>🏔 {{ tour.difficulty }}</span>
           <span *ngFor="let tag of tour.tags" class="tag">{{ tag }}</span>
         </div>
       </div>
     </div>
 
+    <!-- Trajanje ture -->
+    <section class="section">
+      <h3>Trajanje ture</h3>
+      <div *ngIf="durations.length === 0" class="empty-state">
+        Još uvek nije definisano trajanje ture.
+      </div>
+
+      <div *ngIf="durations.length > 0" class="kp-list">
+        <div *ngFor="let d of durations" class="kp-item">
+          <div>
+            <strong>{{ transportLabel(d.transport) }}</strong>
+            <p>{{ d.minutes }} min</p>
+          </div>
+          <div class="kp-actions" *ngIf="canEditKeyPoints()">
+            <button class="btn-delete" type="button" (click)="removeDuration(d.transport)">🗑</button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="canEditKeyPoints()" class="kp-form">
+        <h4>Dodaj ili izmeni trajanje</h4>
+        <form [formGroup]="durationForm" (ngSubmit)="addDuration()">
+          <div class="form-row">
+            <select class="form-control" formControlName="transport">
+              <option value="walk">Peške</option>
+              <option value="bike">Bicikl</option>
+              <option value="car">Automobil</option>
+            </select>
+            <input
+              type="number"
+              class="form-control"
+              formControlName="minutes"
+              min="1"
+              placeholder="Minuti"
+            />
+          </div>
+          <button type="submit" class="btn btn-primary" [disabled]="durationForm.invalid">
+            Sačuvaj trajanje
+          </button>
+        </form>
+      </div>
+    </section>
+
     <!-- KLJUČNE TAČKE - vidljive svim, dodavanje samo autoru -->
     <section class="section">
       <h3>Ključne tačke</h3>
-      <p class="hint" *ngIf="isOwner()">Kliknite na mapu da izaberete lokaciju, zatim popunite formu ispod.</p>
+      <p class="hint" *ngIf="canEditKeyPoints()">Kliknite na mapu da izaberete lokaciju, zatim popunite formu ispod.</p>
 
       <div id="tour-map" class="map"></div>
 
@@ -32,7 +75,7 @@
             <p>{{ kp.description }}</p>
             <small>📍 {{ kp.latitude | number:'1.4-4' }}, {{ kp.longitude | number:'1.4-4' }}</small>
           </div>
-          <div class="kp-actions" *ngIf="isOwner()">
+          <div class="kp-actions" *ngIf="canEditKeyPoints()">
   <button class="btn-edit" type="button" (click)="startEditKeyPoint(kp)">✏️</button>
   <button class="btn-delete" type="button" (click)="deleteKeyPoint(kp)">🗑</button>
 </div>
@@ -40,7 +83,7 @@
       </div>
 
       <!-- Forma za dodavanje ključne tačke - samo autor -->
-      <div *ngIf="isOwner()" class="kp-form">
+      <div *ngIf="canEditKeyPoints()" class="kp-form">
         <h4>{{ editingKeyPoint ? 'Izmeni ključnu tačku' : 'Dodaj ključnu tačku' }}</h4>
         <p *ngIf="selectedLatLng" class="selected-coords">
           ✅ Lokacija: {{ selectedLatLng.lat | number:'1.4-4' }}, {{ selectedLatLng.lng | number:'1.4-4' }}
