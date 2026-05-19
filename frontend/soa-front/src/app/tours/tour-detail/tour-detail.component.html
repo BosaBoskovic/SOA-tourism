@@ -16,6 +16,25 @@
       </div>
     </div>
 
+    <!-- Cena ture -->
+    <section class="section" *ngIf="canEditKeyPoints()">
+      <h3>Cena ture</h3>
+      <form [formGroup]="priceForm" (ngSubmit)="savePrice()">
+        <div class="form-row">
+          <input
+            type="number"
+            class="form-control"
+            formControlName="price"
+            min="0"
+            placeholder="Cena"
+          />
+        </div>
+        <button type="submit" class="btn btn-primary" [disabled]="priceForm.invalid">
+          Sačuvaj cenu
+        </button>
+      </form>
+    </section>
+
     <!-- Trajanje ture -->
     <section class="section">
       <h3>Trajanje ture</h3>

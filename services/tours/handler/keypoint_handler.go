@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"tours/model"
 	"tours/service"
 
@@ -82,8 +83,14 @@ func (h *KeyPointHandler) Update(w http.ResponseWriter, r *http.Request) {
 // DELETE /keypoints/{id}
 func (h *KeyPointHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
+	var lengthKm *float64
+	if lengthParam := r.URL.Query().Get("lengthKm"); lengthParam != "" {
+		if parsed, err := strconv.ParseFloat(lengthParam, 64); err == nil {
+			lengthKm = &parsed
+		}
+	}
 
-	if err := h.service.Delete(id); err != nil {
+	if err := h.service.Delete(id, lengthKm); err != nil {
 		respondError(w, http.StatusNotFound, err.Error())
 		return
 	}

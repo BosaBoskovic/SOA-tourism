@@ -42,6 +42,8 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   reviewError = '';
   reviewSuccess = '';
 
+  priceForm: FormGroup;
+
   constructor(
     private route: ActivatedRoute,
     private tourService: TourService,
@@ -62,6 +64,10 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
       rating: [5, [Validators.required, Validators.min(1), Validators.max(5)]],
       comment: ['', Validators.required],
       tourVisitDate: ['', Validators.required]
+    });
+
+    this.priceForm = this.fb.group({
+      price: [0, [Validators.required, Validators.min(0)]]
     });
 
     this.durationForm = this.fb.group({
@@ -169,17 +175,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   });
 
   if (sortedKeyPoints.length >= 2) {
-    const routeCoordinates = sortedKeyPoints.map(kp => [kp.latitude, kp.longitude]);
-
-    this.routePolyline = this.L.polyline(routeCoordinates, {
-      color: '#2563eb',
-      weight: 5,
-      opacity: 0.85
-    }).addTo(this.map);
-
-    this.map.fitBounds(this.routePolyline.getBounds(), {
-      padding: [40, 40]
-    });
+    this.drawRoutePolyline(sortedKeyPoints);
   } else if (sortedKeyPoints.length === 1) {
     this.map.setView(
       [sortedKeyPoints[0].latitude, sortedKeyPoints[0].longitude],
@@ -214,6 +210,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
         this.zone.run(() => {
           this.tour = tour;
           this.durations = tour.durations ?? [];
+          this.priceForm.patchValue({ price: tour.price ?? 0 });
           this.loading = false;
           this.cdr.detectChanges();
 
@@ -252,6 +249,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
 
           this.tour = preview;
           this.durations = [];
+          this.priceForm.patchValue({ price: preview.price ?? 0 });
           this.keyPoints = preview.firstKeyPoint ? [preview.firstKeyPoint] : [];
           this.loading = false;
           this.cdr.detectChanges();
@@ -365,7 +363,7 @@ cancelEditKeyPoint(): void {
   this.kpLoading = true;
   this.kpError = '';
 
-  this.tourService.createKeyPoint({
+  const newKeyPoint = {
     tourId: this.tour!.id,
     name: this.kpForm.value.name,
     description: this.kpForm.value.description,
@@ -373,40 +371,54 @@ cancelEditKeyPoint(): void {
     longitude: this.selectedLatLng.lng,
     imageUrl: this.kpForm.value.imageUrl,
     order: this.keyPoints.length + 1
-  }).subscribe({
-    next: (kp) => {
-      this.keyPoints.push(kp);
-      this.renderKeyPointMarkers();
+  };
 
-      if (this.map && this.L) {
-        const marker = this.L.marker([kp.latitude, kp.longitude])
-          .addTo(this.map)
-          .bindPopup(`<b>${kp.name}</b>`);
+  const nextKeyPoints = [...this.keyPoints, newKeyPoint];
 
-        if (kp.id) {
-          this.keyPointMarkers.push({
-            keyPointId: kp.id,
-            marker: marker
-          });
+  this.calculateLengthKm(nextKeyPoints)
+    .then((lengthKm) => {
+      this.tourService.createKeyPoint({
+        ...newKeyPoint,
+        lengthKm
+      }).subscribe({
+        next: (kp) => {
+          this.keyPoints.push(kp);
+          this.renderKeyPointMarkers();
+
+          if (this.map && this.L) {
+            const marker = this.L.marker([kp.latitude, kp.longitude])
+              .addTo(this.map)
+              .bindPopup(`<b>${kp.name}</b>`);
+
+            if (kp.id) {
+              this.keyPointMarkers.push({
+                keyPointId: kp.id,
+                marker: marker
+              });
+            }
+          }
+
+          this.kpForm.reset();
+          this.selectedLatLng = null;
+
+          if (this.tempMarker) {
+            this.map.removeLayer(this.tempMarker);
+            this.tempMarker = null;
+          }
+
+          this.kpLoading = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.kpError = 'Greška pri dodavanju ključne tačke.';
+          this.kpLoading = false;
         }
-      }
-
-      this.kpForm.reset();
-      this.selectedLatLng = null;
-
-      if (this.tempMarker) {
-        this.map.removeLayer(this.tempMarker);
-        this.tempMarker = null;
-      }
-
+      });
+    })
+    .catch(() => {
+      this.kpError = 'Greška pri izračunavanju dužine ture.';
       this.kpLoading = false;
-      this.cdr.detectChanges();
-    },
-    error: () => {
-      this.kpError = 'Greška pri dodavanju ključne tačke.';
-      this.kpLoading = false;
-    }
-  });
+    });
 }
 
   updateKeyPoint(): void {
@@ -425,54 +437,64 @@ cancelEditKeyPoint(): void {
     order: this.editingKeyPoint.order
   };
 
-  this.tourService.updateKeyPoint(this.editingKeyPoint.id!, updatedKeyPoint).subscribe({
-    next: (kp) => {
-      const index = this.keyPoints.findIndex(x => x.id === kp.id);
+  const nextKeyPoints = this.keyPoints.map((kp) =>
+    kp.id === this.editingKeyPoint!.id ? { ...kp, ...updatedKeyPoint } : kp
+  );
 
-      if (index !== -1) {
-        this.keyPoints[index] = kp;
-      }
-      this.renderKeyPointMarkers();
+  this.calculateLengthKm(nextKeyPoints)
+    .then((lengthKm) => {
+      this.tourService.updateKeyPoint(this.editingKeyPoint!.id!, {
+        ...updatedKeyPoint,
+        lengthKm
+      }).subscribe({
+        next: (kp) => {
+          const index = this.keyPoints.findIndex(x => x.id === kp.id);
 
-      
+          if (index !== -1) {
+            this.keyPoints[index] = kp;
+          }
+          this.renderKeyPointMarkers();
 
-      this.editingKeyPoint = null;
-      this.kpForm.reset();
-      this.selectedLatLng = null;
+          this.editingKeyPoint = null;
+          this.kpForm.reset();
+          this.selectedLatLng = null;
 
-      if (this.tempMarker && this.map) {
-        this.map.removeLayer(this.tempMarker);
-        this.tempMarker = null;
-      }
+          if (this.tempMarker && this.map) {
+            this.map.removeLayer(this.tempMarker);
+            this.tempMarker = null;
+          }
 
+          this.kpLoading = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.kpError = 'Greška pri izmeni ključne tačke.';
+          this.kpLoading = false;
+        }
+      });
+    })
+    .catch(() => {
+      this.kpError = 'Greška pri izračunavanju dužine ture.';
       this.kpLoading = false;
-      this.cdr.detectChanges();
-    },
-    error: () => {
-      this.kpError = 'Greška pri izmeni ključne tačke.';
-      this.kpLoading = false;
-    }
-  });
+    });
 }
 
   deleteKeyPoint(kp: KeyPoint): void {
-  this.tourService.deleteKeyPoint(kp.id!).subscribe({
-    next: () => {
-      this.keyPoints = this.keyPoints.filter(k => k.id !== kp.id);
-      this.renderKeyPointMarkers();
+  const nextKeyPoints = this.keyPoints.filter(k => k.id !== kp.id);
 
-      const markerIndex = this.keyPointMarkers.findIndex(
-        item => item.keyPointId === kp.id
-      );
-
-      if (markerIndex !== -1 && this.map) {
-        this.map.removeLayer(this.keyPointMarkers[markerIndex].marker);
-        this.keyPointMarkers.splice(markerIndex, 1);
-      }
-
-      this.cdr.detectChanges();
-    }
-  });
+  this.calculateLengthKm(nextKeyPoints)
+    .then((lengthKm) => {
+      this.tourService.deleteKeyPoint(kp.id!, lengthKm).subscribe({
+        next: () => {
+          if (this.tour) {
+            this.loadKeyPoints(this.tour.id);
+          }
+        }
+      });
+    })
+    .catch(() => {
+      this.kpError = 'Greška pri izračunavanju dužine ture.';
+    });
 }
 
   addDuration(): void {
@@ -507,11 +529,13 @@ cancelEditKeyPoint(): void {
       description: this.tour.description,
       difficulty: this.tour.difficulty,
       tags: this.tour.tags,
-      durations: this.durations
+      durations: this.durations,
+      price: this.tour.price
     }).subscribe({
       next: (updated) => {
         this.tour = updated;
         this.durations = updated.durations ?? [];
+        this.priceForm.patchValue({ price: updated.price ?? 0 });
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -558,4 +582,97 @@ cancelEditKeyPoint(): void {
     return { walk: 'Peške', bike: 'Bicikl', car: 'Automobil' }[transport] ?? transport;
   }
   starsArray(n: number): number[] { return Array(n).fill(0); }
+
+  savePrice(): void {
+    if (!this.tour || !this.hasStatus(this.tour)) return;
+    if (this.priceForm.invalid) return;
+
+    const price = Number(this.priceForm.value.price ?? 0);
+
+    this.tourService.updateTour(this.tour.id, {
+      name: this.tour.name,
+      description: this.tour.description,
+      difficulty: this.tour.difficulty,
+      tags: this.tour.tags,
+      durations: this.durations,
+      price
+    }).subscribe({
+      next: (updated) => {
+        this.tour = updated;
+        this.priceForm.patchValue({ price: updated.price ?? 0 });
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.kpError = err.error?.error || 'Greška pri čuvanju cene ture.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private async calculateLengthKm(points: Array<Pick<KeyPoint, 'latitude' | 'longitude' | 'order'>>): Promise<number> {
+    if (points.length < 2) {
+      return 0;
+    }
+
+    const data = await this.fetchRouteData(points);
+    const legs = data?.routes?.[0]?.legs ?? [];
+    if (legs.length > 0) {
+      const meters = legs.reduce((sum: number, leg: { distance?: number }) => sum + (leg.distance ?? 0), 0);
+      return meters / 1000;
+    }
+
+    const meters = data?.routes?.[0]?.distance ?? 0;
+    return meters / 1000;
+  }
+
+  private async drawRoutePolyline(points: Array<Pick<KeyPoint, 'latitude' | 'longitude' | 'order'>>): Promise<void> {
+    try {
+      const data = await this.fetchRouteData(points, true);
+      const coords = data?.routes?.[0]?.geometry?.coordinates ?? [];
+      if (coords.length === 0) {
+        return;
+      }
+
+      const latLngs = coords.map((coord: [number, number]) => [coord[1], coord[0]]);
+
+      this.routePolyline = this.L.polyline(latLngs, {
+        color: '#2563eb',
+        weight: 5,
+        opacity: 0.85
+      }).addTo(this.map);
+
+      this.map.fitBounds(this.routePolyline.getBounds(), {
+        padding: [40, 40]
+      });
+    } catch {
+      // fallback: draw straight segments
+      const fallback = points
+        .sort((a, b) => a.order - b.order)
+        .map(kp => [kp.latitude, kp.longitude]);
+
+      this.routePolyline = this.L.polyline(fallback, {
+        color: '#2563eb',
+        weight: 5,
+        opacity: 0.85
+      }).addTo(this.map);
+    }
+  }
+
+  private async fetchRouteData(
+    points: Array<Pick<KeyPoint, 'latitude' | 'longitude' | 'order'>>,
+    withGeometry = false
+  ): Promise<any> {
+    const sorted = [...points].sort((a, b) => a.order - b.order);
+    const coords = sorted.map((kp) => `${kp.longitude},${kp.latitude}`).join(';');
+    const overview = withGeometry ? 'full' : 'false';
+    const geometries = withGeometry ? '&geometries=geojson' : '';
+    const url = `https://router.project-osrm.org/route/v1/foot/${coords}?overview=${overview}${geometries}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Routing request failed');
+    }
+
+    return response.json();
+  }
 }

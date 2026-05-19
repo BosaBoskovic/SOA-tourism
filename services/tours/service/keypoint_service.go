@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"math"
 	"time"
 	"tours/model"
 	"tours/repository"
@@ -60,7 +59,7 @@ func (s *KeyPointService) Create(req *model.CreateKeyPointRequest) (*model.KeyPo
 	if err := s.repo.Create(kp); err != nil {
 		return nil, err
 	}
-	if err := s.recalculateTourLength(tourOID); err != nil {
+	if err := s.updateTourLength(tourOID, req.LengthKm); err != nil {
 		return nil, err
 	}
 	return kp, nil
@@ -141,14 +140,14 @@ func (s *KeyPointService) Update(id string, req *model.UpdateKeyPointRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	if err := s.recalculateTourLength(updated.TourID); err != nil {
+	if err := s.updateTourLength(updated.TourID, req.LengthKm); err != nil {
 		return nil, err
 	}
 
 	return updated, nil
 }
 
-func (s *KeyPointService) Delete(id string) error {
+func (s *KeyPointService) Delete(id string, lengthKm *float64) error {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return errors.New("invalid key point ID")
@@ -181,39 +180,42 @@ func (s *KeyPointService) Delete(id string) error {
 		return err
 	}
 
-	return s.recalculateTourLength(kp.TourID)
-}
-
-func (s *KeyPointService) recalculateTourLength(tourID bson.ObjectID) error {
-	kps, err := s.repo.FindByTour(tourID)
-	if err != nil {
+	if err := s.normalizeKeyPointOrder(kp.TourID); err != nil {
 		return err
 	}
 
-	lengthKm := 0.0
-	for i := 1; i < len(kps); i++ {
-		lengthKm += distanceKm(kps[i-1].Latitude, kps[i-1].Longitude, kps[i].Latitude, kps[i].Longitude)
+	return s.updateTourLength(kp.TourID, lengthKm)
+}
+
+func (s *KeyPointService) updateTourLength(tourID bson.ObjectID, lengthKm *float64) error {
+	if lengthKm == nil {
+		return nil
 	}
 
 	update := bson.M{
-		"lengthKm": lengthKm,
+		"lengthKm": *lengthKm,
 		"updatedAt": time.Now(),
 	}
 
 	return s.tourRepo.Update(tourID, update)
 }
 
-func distanceKm(lat1, lon1, lat2, lon2 float64) float64 {
-	const earthRadiusKm = 6371.0
+func (s *KeyPointService) normalizeKeyPointOrder(tourID bson.ObjectID) error {
+	kps, err := s.repo.FindByTour(tourID)
+	if err != nil {
+		return err
+	}
 
-	lat1Rad := lat1 * math.Pi / 180
-	lat2Rad := lat2 * math.Pi / 180
-	deltaLat := (lat2 - lat1) * math.Pi / 180
-	deltaLon := (lon2 - lon1) * math.Pi / 180
+	for i, kp := range kps {
+		newOrder := i + 1
+		if kp.Order == newOrder {
+			continue
+		}
+		update := bson.M{"order": newOrder}
+		if err := s.repo.Update(kp.ID, update); err != nil {
+			return err
+		}
+	}
 
-	a := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
-		math.Cos(lat1Rad)*math.Cos(lat2Rad)*math.Sin(deltaLon/2)*math.Sin(deltaLon/2)
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-
-	return earthRadiusKm * c
+	return nil
 }

@@ -74,4 +74,5 @@ type UpdateTourRequest struct {
 	Difficulty  DifficultyLevel `json:"difficulty"`
 	Tags        []string        `json:"tags"`
 	Durations   []TourDuration  `json:"durations"`
+	Price       float64         `json:"price"`
 }

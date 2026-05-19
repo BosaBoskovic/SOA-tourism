@@ -98,6 +98,7 @@ func (s *TourService) Update(id string, req *model.UpdateTourRequest) (*model.To
 		"difficulty":  req.Difficulty,
 		"tags":        req.Tags,
 		"durations":   req.Durations,
+		"price":       req.Price,
 		"updatedAt":   time.Now(),
 	}
 
