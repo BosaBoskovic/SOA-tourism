@@ -1,3 +1,5 @@
+<app-top-nav></app-top-nav>
+
 <div class="page-container">
   <div class="page-header">
     <div>
@@ -33,7 +35,7 @@
       <p *ngIf="error" class="alert-error">{{ error }}</p>
 
       <div *ngIf="!loading && profiles.length === 0 && !error" class="empty-state">
-        Unesi kriterijume pretrage kako bi video rezultate.
+        Nema dostupnih korisnika za prikaz.
       </div>
 
       <div class="results-list" *ngIf="profiles.length > 0">

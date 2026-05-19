@@ -3,22 +3,17 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth/services/auth.service';
 import { AdminComponent } from '../admin/admin.component';
+import { TopNavComponent } from '../shared/top-nav/top-nav.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, AdminComponent, RouterLink],
+  imports: [CommonModule, AdminComponent, RouterLink, TopNavComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent implements OnInit {
   currentUser: any = null;
-
-  menuOpen = false;
-
-toggleMenu(): void {
-  this.menuOpen = !this.menuOpen;
-}
 
   constructor(
     private authService: AuthService,
@@ -32,10 +27,5 @@ toggleMenu(): void {
         this.router.navigate(['/login']);
       }
     });
-  }
-
-  logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/login']);
   }
 }

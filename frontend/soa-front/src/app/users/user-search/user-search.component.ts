@@ -5,11 +5,12 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../auth/services/auth.service';
 import { FollowersService, Recommendation } from '../../services/followers.service';
 import { ProfileService, PublicProfileResponse } from '../../services/profile.service';
+import { TopNavComponent } from '../../shared/top-nav/top-nav.component';
 
 @Component({
   selector: 'app-user-search',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TopNavComponent],
   templateUrl: './user-search.component.html',
   styleUrl: './user-search.component.css'
 })
@@ -47,6 +48,8 @@ export class UserSearchComponent implements OnInit {
         this.loadRecommendations(user.username);
       }
     });
+
+    this.loadInitialProfiles();
   }
 
   search(): void {
@@ -84,6 +87,7 @@ export class UserSearchComponent implements OnInit {
     this.searchForm.reset({ username: '', role: '' });
     this.profiles = [];
     this.error = '';
+    this.loadInitialProfiles();
   }
 
   isFollowing(username: string): boolean {
@@ -174,6 +178,28 @@ export class UserSearchComponent implements OnInit {
         this.zone.run(() => {
           this.recommendations = [];
           this.recommendationsLoading = false;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  private loadInitialProfiles(): void {
+    this.loading = true;
+    this.error = '';
+
+    this.profileService.searchProfiles({ limit: 12 }).subscribe({
+      next: (res) => {
+        this.zone.run(() => {
+          this.profiles = res.profiles || [];
+          this.loading = false;
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        this.zone.run(() => {
+          this.profiles = [];
+          this.loading = false;
           this.cdr.detectChanges();
         });
       }

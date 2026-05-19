@@ -99,11 +99,6 @@ func (h *ProfileHandler) searchProfiles(c *gin.Context) {
 		}
 	}
 
-	if username == "" && role == "" {
-		c.JSON(http.StatusOK, gin.H{"profiles": []model.PublicProfileResponse{}})
-		return
-	}
-
 	profiles, err := h.svc.SearchProfiles(c.Request.Context(), username, role, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri pretrazi profila"})
