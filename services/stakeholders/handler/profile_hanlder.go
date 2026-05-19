@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"stakeholders/model"
 	"stakeholders/service"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -23,8 +22,6 @@ func (h *ProfileHandler) RegisterRoutes(r *gin.Engine) {
 	profile := r.Group("/stakeholders/profile")
 	profile.Use(h.authMiddleware())
 	profile.GET("", h.getProfile)
-	profile.GET("/search", h.searchProfiles)
-	profile.GET("/:username", h.getPublicProfile)
 	profile.PUT("", h.updateProfile)
 }
 
@@ -66,46 +63,6 @@ func (h *ProfileHandler) updateProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profil uspesno azuriran", "profile": resp})
-}
-
-func (h *ProfileHandler) getPublicProfile(c *gin.Context) {
-	username := strings.TrimSpace(c.Param("username"))
-	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username je obavezan"})
-		return
-	}
-
-	resp, err := h.svc.GetPublicProfile(c.Request.Context(), username)
-	if err != nil {
-		switch err.Error() {
-		case "profile_not_found":
-			c.JSON(http.StatusNotFound, gin.H{"error": "Profil nije pronadjen"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri citanju profila"})
-		}
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"profile": resp})
-}
-
-func (h *ProfileHandler) searchProfiles(c *gin.Context) {
-	username := strings.TrimSpace(c.Query("username"))
-	role := strings.TrimSpace(c.Query("role"))
-	limit := 20
-	if rawLimit := strings.TrimSpace(c.Query("limit")); rawLimit != "" {
-		if parsed, err := strconv.Atoi(rawLimit); err == nil && parsed > 0 && parsed <= 100 {
-			limit = parsed
-		}
-	}
-
-	profiles, err := h.svc.SearchProfiles(c.Request.Context(), username, role, limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri pretrazi profila"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"profiles": profiles})
 }
 
 func (h *ProfileHandler) authMiddleware() gin.HandlerFunc {
