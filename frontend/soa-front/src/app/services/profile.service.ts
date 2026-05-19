@@ -11,6 +11,10 @@ export interface ProfileResponse {
   motto: string;
 }
 
+export interface PublicProfileResponse extends ProfileResponse {
+  role: string;
+}
+
 export interface UpdateProfileRequest {
   firstName?: string;
   lastName?: string;
@@ -47,5 +51,32 @@ export class ProfileService {
         headers: this.getAuthHeaders()
       }
     );
+  }
+
+  getPublicProfile(username: string): Observable<{ profile: PublicProfileResponse }> {
+    return this.http.get<{ profile: PublicProfileResponse }>(
+      `${this.apiUrl}/${encodeURIComponent(username)}`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  searchProfiles(params: { username?: string; role?: string; limit?: number }):
+    Observable<{ profiles: PublicProfileResponse[] }> {
+    const query = new URLSearchParams();
+    if (params.username) {
+      query.set('username', params.username);
+    }
+    if (params.role) {
+      query.set('role', params.role);
+    }
+    if (params.limit) {
+      query.set('limit', String(params.limit));
+    }
+
+    const queryString = query.toString();
+    const url = queryString ? `${this.apiUrl}/search?${queryString}` : `${this.apiUrl}/search`;
+    return this.http.get<{ profiles: PublicProfileResponse[] }>(url, {
+      headers: this.getAuthHeaders()
+    });
   }
 }

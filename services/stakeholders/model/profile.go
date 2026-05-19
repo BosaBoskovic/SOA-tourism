@@ -18,6 +18,16 @@ type ProfileResponse struct {
 	Motto     string `json:"motto"`
 }
 
+type PublicProfileResponse struct {
+	Username  string `json:"username"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	ImageURL  string `json:"imageURL"`
+	Bio       string `json:"bio"`
+	Motto     string `json:"motto"`
+	Role      string `json:"role"`
+}
+
 type UpdateProfileRequest struct {
 	FirstName string `json:"firstName" binding:"omitempty,max=50"`
 	LastName  string `json:"lastName"  binding:"omitempty,max=50"`

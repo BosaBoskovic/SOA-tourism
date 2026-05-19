@@ -1,0 +1,43 @@
+<app-top-nav></app-top-nav>
+
+<div class="profile-page">
+  <a class="back-link" routerLink="/users/search">← Nazad na pretragu</a>
+
+  <div class="profile-card">
+    <h2>Profil korisnika</h2>
+
+    <p *ngIf="loading">Ucitavanje...</p>
+    <p *ngIf="error" class="alert-error">{{ error }}</p>
+
+    <div *ngIf="profile && !loading" class="profile-view">
+      <img *ngIf="profile.imageURL" [src]="profile.imageURL" alt="Profilna slika" class="profile-img" />
+      <div *ngIf="!profile.imageURL" class="profile-img-placeholder">
+        {{ profile.username[0]?.toUpperCase() }}
+      </div>
+
+      <h3>{{ profile.firstName }} {{ profile.lastName }}</h3>
+      <p class="username">@{{ profile.username }}</p>
+      <span class="role-pill">{{ profile.role }}</span>
+
+      <p *ngIf="profile.motto" class="motto">"{{ profile.motto }}"</p>
+      <p *ngIf="profile.bio" class="bio">{{ profile.bio }}</p>
+
+      <div class="actions">
+        <button
+          class="btn"
+          [class.btn-primary]="!isFollowing"
+          [class.btn-secondary]="isFollowing"
+          type="button"
+          (click)="toggleFollow()"
+          [disabled]="isSelf || updating"
+        >
+          {{ isSelf ? 'Tvoj profil' : (isFollowing ? 'Otprati' : 'Zaprati') }}
+        </button>
+
+        <a *ngIf="isSelf" class="btn btn-outline" routerLink="/profile">
+          Uredi profil
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
