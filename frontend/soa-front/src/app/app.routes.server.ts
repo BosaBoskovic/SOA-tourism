@@ -6,6 +6,14 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client  
   },
   {
+    path: 'users/search',
+    renderMode: RenderMode.Client
+  },
+  {
+    path: 'users/:username',
+    renderMode: RenderMode.Client
+  },
+  {
     path: '**',
     renderMode: RenderMode.Prerender
   }

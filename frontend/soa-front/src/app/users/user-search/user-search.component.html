@@ -1,0 +1,124 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h2>Pretrazi korisnike</h2>
+      <p>Pronadji vodice i turiste koje zelis da zapratis.</p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="search-panel">
+      <form class="search-form" [formGroup]="searchForm" (ngSubmit)="search()">
+        <div class="form-group">
+          <label>Korisnicko ime</label>
+          <input class="form-control" formControlName="username" placeholder="npr. jelena" />
+        </div>
+
+        <div class="form-group">
+          <label>Uloga</label>
+          <select class="form-control" formControlName="role">
+            <option value="">Sve uloge</option>
+            <option value="tourist">Turista</option>
+            <option value="guide">Vodic</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Pretrazi</button>
+          <button class="btn btn-secondary" type="button" (click)="clearSearch()">Ponisti</button>
+        </div>
+      </form>
+
+      <p *ngIf="loading">Ucitavanje...</p>
+      <p *ngIf="error" class="alert-error">{{ error }}</p>
+
+      <div *ngIf="!loading && profiles.length === 0 && !error" class="empty-state">
+        Unesi kriterijume pretrage kako bi video rezultate.
+      </div>
+
+      <div class="results-list" *ngIf="profiles.length > 0">
+        <div class="result-card" *ngFor="let profile of profiles">
+          <div class="avatar">
+            <img *ngIf="profile.imageURL" [src]="profile.imageURL" alt="Profilna slika" />
+            <div *ngIf="!profile.imageURL" class="avatar-placeholder">
+              {{ profile.username[0]?.toUpperCase() }}
+            </div>
+          </div>
+
+          <div class="result-body">
+            <div class="result-header">
+              <div>
+                <h3>{{ profile.firstName }} {{ profile.lastName }}</h3>
+                <p class="username">@{{ profile.username }}</p>
+              </div>
+              <span class="role-pill">{{ profile.role }}</span>
+            </div>
+
+            <p class="bio" *ngIf="profile.bio">{{ profile.bio }}</p>
+
+            <div class="result-actions">
+              <a class="btn btn-outline" [routerLink]="['/users', profile.username]">
+                Pogledaj profil
+              </a>
+
+              <button
+                class="btn"
+                [class.btn-primary]="!isFollowing(profile.username)"
+                [class.btn-secondary]="isFollowing(profile.username)"
+                type="button"
+                (click)="isFollowing(profile.username) ? unfollowUser(profile.username) : followUser(profile.username)"
+                [disabled]="!canFollow(profile.username)"
+              >
+                {{ canFollow(profile.username)
+                  ? (isFollowing(profile.username) ? 'Otprati' : 'Zaprati')
+                  : 'To si ti' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="recommendations-panel">
+      <div class="panel-header">
+        <h3>Preporuke</h3>
+        <span>Za koga bi jos mogao/la biti zainteresovan/a</span>
+      </div>
+
+      <p *ngIf="recommendationsLoading">Ucitavanje preporuka...</p>
+
+      <div *ngIf="!recommendationsLoading && recommendations.length === 0" class="empty-state small">
+        Prati barem jednog korisnika kako bismo prikazali preporuke.
+      </div>
+
+      <div class="recommendations-list" *ngIf="recommendations.length > 0">
+        <div class="recommendation-item" *ngFor="let rec of recommendations">
+          <div class="rec-main">
+            <div class="rec-avatar">{{ rec.username[0]?.toUpperCase() }}</div>
+            <div>
+              <p class="rec-username">@{{ rec.username }}</p>
+              <p class="rec-score">Zajednicki pratioci: {{ rec.score }}</p>
+            </div>
+          </div>
+          <div class="rec-actions">
+            <button
+              class="btn"
+              [class.btn-primary]="!isFollowing(rec.username)"
+              [class.btn-secondary]="isFollowing(rec.username)"
+              type="button"
+              (click)="isFollowing(rec.username) ? unfollowUser(rec.username) : followUser(rec.username)"
+              [disabled]="!canFollow(rec.username)"
+            >
+              {{ canFollow(rec.username)
+                ? (isFollowing(rec.username) ? 'Otprati' : 'Zaprati')
+                : 'To si ti' }}
+            </button>
+            <a class="btn btn-outline" [routerLink]="['/users', rec.username]">
+              Profil
+            </a>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

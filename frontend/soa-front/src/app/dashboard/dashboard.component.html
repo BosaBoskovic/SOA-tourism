@@ -28,6 +28,14 @@
           </a>
 
           <a
+            routerLink="/users/search"
+            *ngIf="currentUser.role === 'tourist' || currentUser.role === 'guide'"
+            (click)="menuOpen = false"
+          >
+            Pretrazi korisnike
+          </a>
+
+          <a
             routerLink="/tours"
             *ngIf="currentUser.role === 'guide'"
             (click)="menuOpen = false"
@@ -119,6 +127,15 @@
       >
         <h3>Moj profil</h3>
         <p>Uredi svoje podatke, sliku, bio i motto.</p>
+      </div>
+
+      <div
+        class="action-card"
+        *ngIf="currentUser?.role === 'tourist' || currentUser?.role === 'guide'"
+        routerLink="/users/search"
+      >
+        <h3>Pretrazi korisnike</h3>
+        <p>Nadji profile i zaprati ljude koji te inspirisu.</p>
       </div>
 
       <div

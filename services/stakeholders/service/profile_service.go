@@ -35,3 +35,11 @@ func (s *ProfileService) UpdateProfile(ctx context.Context, username string, req
 	}
 	return s.GetProfile(ctx, username)
 }
+
+func (s *ProfileService) GetPublicProfile(ctx context.Context, username string) (*model.PublicProfileResponse, error) {
+	return s.repo.GetPublicByUsername(ctx, username)
+}
+
+func (s *ProfileService) SearchProfiles(ctx context.Context, username, role string, limit int) ([]model.PublicProfileResponse, error) {
+	return s.repo.Search(ctx, username, role, limit)
+}

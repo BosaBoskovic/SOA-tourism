@@ -8,6 +8,8 @@ import { TourCreateComponent } from './tours/tour-create/tour-create.component';
 import { TourDetailComponent } from './tours/tour-detail/tour-detail.component';
 import { PositionSimulatorComponent } from './position-simulator/position-simulator.component';
 import { BlogComponent } from './blog/blog.component';
+import { UserSearchComponent } from './users/user-search/user-search.component';
+import { UserProfileComponent } from './users/user-profile/user-profile.component';
 
 
 export const routes: Routes = [
@@ -16,6 +18,8 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'profile', component: ProfileComponent },
+  { path: 'users/search', component: UserSearchComponent },
+  { path: 'users/:username', component: UserProfileComponent },
   { path: 'tours', component: TourListComponent },
   { path: 'tours/new', component: TourCreateComponent },
   { path: 'tours/:id', component: TourDetailComponent },

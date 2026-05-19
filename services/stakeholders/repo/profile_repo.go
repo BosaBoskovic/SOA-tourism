@@ -105,3 +105,81 @@ func (r *ProfileRepo) Update(ctx context.Context, username string, req model.Upd
 	})
 	return err
 }
+
+func (r *ProfileRepo) GetPublicByUsername(ctx context.Context, username string) (*model.PublicProfileResponse, error) {
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	defer session.Close(ctx)
+
+	result, err := session.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		rec, err := tx.Run(ctx, `
+			MATCH (a:Account {username: $username})-[:HAS_PROFILE]->(p:Profile)
+			RETURN p.username AS username, p.firstName AS firstName, p.lastName AS lastName,
+			       p.imageURL AS imageURL, p.bio AS bio, p.motto AS motto, a.role AS role
+		`, map[string]any{"username": username})
+		if err != nil {
+			return nil, err
+		}
+		if rec.Next(ctx) {
+			return rec.Record(), nil
+		}
+		return nil, errors.New("profile_not_found")
+	})
+	if err != nil {
+		return nil, err
+	}
+	rec := result.(*neo4j.Record)
+	return &model.PublicProfileResponse{
+		Username:  rec.Values[0].(string),
+		FirstName: rec.Values[1].(string),
+		LastName:  rec.Values[2].(string),
+		ImageURL:  rec.Values[3].(string),
+		Bio:       rec.Values[4].(string),
+		Motto:     rec.Values[5].(string),
+		Role:      rec.Values[6].(string),
+	}, nil
+}
+
+func (r *ProfileRepo) Search(ctx context.Context, username, role string, limit int) ([]model.PublicProfileResponse, error) {
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	defer session.Close(ctx)
+
+	result, err := session.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		res, err := tx.Run(ctx, `
+			MATCH (a:Account)-[:HAS_PROFILE]->(p:Profile)
+			WHERE ($username = "" OR toLower(a.username) CONTAINS toLower($username))
+			  AND ($role = "" OR toLower(a.role) = toLower($role))
+			RETURN p.username AS username, p.firstName AS firstName, p.lastName AS lastName,
+			       p.imageURL AS imageURL, p.bio AS bio, p.motto AS motto, a.role AS role
+			ORDER BY a.username
+			LIMIT $limit
+		`, map[string]any{
+			"username": username,
+			"role":     role,
+			"limit":    limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		records, err := res.Collect(ctx)
+		if err != nil {
+			return nil, err
+		}
+		profiles := make([]model.PublicProfileResponse, 0, len(records))
+		for _, rec := range records {
+			profiles = append(profiles, model.PublicProfileResponse{
+				Username:  rec.Values[0].(string),
+				FirstName: rec.Values[1].(string),
+				LastName:  rec.Values[2].(string),
+				ImageURL:  rec.Values[3].(string),
+				Bio:       rec.Values[4].(string),
+				Motto:     rec.Values[5].(string),
+				Role:      rec.Values[6].(string),
+			})
+		}
+		return profiles, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.([]model.PublicProfileResponse), nil
+}
