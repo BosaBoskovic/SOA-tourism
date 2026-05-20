@@ -147,6 +147,7 @@ services:
     environment:
       PORT: 8080
       STAKEHOLDERS_URL: http://soa-stakeholders:8081
+      STAKEHOLDERS_GRPC_URL: soa-stakeholders:9091
       BLOG_URL: http://soa-blog:8082
       FOLLOWERS_URL: http://soa-followers:8084
       TOURS_URL: http://soa-tours:8085

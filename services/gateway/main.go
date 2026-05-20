@@ -143,6 +143,7 @@ func main() {
 		stakeholdersGRPCURL,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
 	)
 	if err != nil {
 		log.Fatalf("neuspesno povezivanje sa stakeholders gRPC servisom: %v", err)
@@ -163,10 +164,24 @@ func main() {
 			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "Metod nije dozvoljen"})
 			return
 		}
-		var req stakeholdersv1.LoginRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		var reqPayload struct {
+			UsernameOrEmail    string `json:"usernameOrEmail"`
+			UsernameOrEmailAlt string `json:"username_or_email"`
+			Password           string `json:"password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Neispravan zahtev"})
 			return
+		}
+
+		usernameOrEmail := strings.TrimSpace(reqPayload.UsernameOrEmail)
+		if usernameOrEmail == "" {
+			usernameOrEmail = strings.TrimSpace(reqPayload.UsernameOrEmailAlt)
+		}
+
+		req := stakeholdersv1.LoginRequest{
+			UsernameOrEmail: usernameOrEmail,
+			Password:        reqPayload.Password,
 		}
 
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -225,21 +240,37 @@ func main() {
 		if err != nil {
 			st, ok := status.FromError(err)
 			if !ok {
+				log.Printf("[GATEWAY] GetProfile gRPC error: %v", err)
 				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri citanju profila"})
 				return
 			}
+			log.Printf("[GATEWAY] GetProfile gRPC error: code=%s message=%s", st.Code(), st.Message())
 			switch st.Code() {
 			case codes.Unauthenticated:
 				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Neispravan ili istekao token"})
 			case codes.NotFound:
 				writeJSON(w, http.StatusNotFound, map[string]any{"error": "Profil nije pronadjen"})
+			case codes.ResourceExhausted:
+				writeJSON(w, http.StatusRequestEntityTooLarge, map[string]any{"error": "Profil je prevelik"})
+			case codes.Unavailable:
+				writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "Servis profila nije dostupan"})
 			default:
 				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri citanju profila"})
 			}
 			return
 		}
 
-		writeJSON(w, http.StatusOK, map[string]any{"profile": resp.Profile})
+		profilePayload := map[string]any{}
+		if resp.Profile != nil {
+			profilePayload["username"] = resp.Profile.Username
+			profilePayload["firstName"] = resp.Profile.FirstName
+			profilePayload["lastName"] = resp.Profile.LastName
+			profilePayload["imageURL"] = resp.Profile.ImageUrl
+			profilePayload["bio"] = resp.Profile.Bio
+			profilePayload["motto"] = resp.Profile.Motto
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"profile": profilePayload})
 	})
 	mux.Handle("/stakeholders", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
