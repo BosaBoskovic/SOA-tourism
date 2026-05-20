@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package stakeholders.v1;
+
+option go_package = "soa-tourism-proto/stakeholders/v1;stakeholdersv1";
+
+service StakeholdersService {
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc GetProfile (GetProfileRequest) returns (GetProfileResponse);
+}
+
+message LoginRequest {
+  string username_or_email = 1;
+  string password = 2;
+}
+
+message AccountInfo {
+  string username = 1;
+  string email = 2;
+  string role = 3;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string token_type = 2;
+  int64 expires_in = 3;
+  string expires_at = 4;
+  AccountInfo account = 5;
+}
+
+message GetProfileRequest {
+  string access_token = 1;
+}
+
+message Profile {
+  string username = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string image_url = 4;
+  string bio = 5;
+  string motto = 6;
+}
+
+message GetProfileResponse {
+  Profile profile = 1;
+}

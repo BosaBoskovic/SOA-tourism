@@ -3,14 +3,19 @@ FROM golang:1.26-alpine AS builder
 
 WORKDIR /build
 
-# Kopiraj go.mod (gateway nema eksternih zavisnosti, go.sum nije potreban)
-COPY go.mod ./
+# Kopiraj shared proto modul
+COPY proto/gen/go ./proto/gen/go
 
-# Preuzmi zavisnosti (nema ih, ali ostavljamo za konzistentnost)
+# Kopiraj go.mod i go.sum
+COPY services/gateway/go.mod services/gateway/go.sum ./services/gateway/
+
+WORKDIR /build/services/gateway
+
+# Preuzmi zavisnosti
 RUN go mod download
 
 # Kopiraj izvorni kod
-COPY . .
+COPY services/gateway .
 
 # Kompajliraj aplikaciju
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o gateway .
@@ -24,7 +29,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 # Kopiraj kompajlirani binar iz builder stage-a
-COPY --from=builder /build/gateway .
+COPY --from=builder /build/services/gateway/gateway .
 
 # Izloži port koji koristi gateway
 EXPOSE 8080

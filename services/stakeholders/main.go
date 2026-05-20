@@ -12,6 +12,7 @@ import (
 
 	"stakeholders/handler"
 	"stakeholders/repo"
+	"stakeholders/rpc"
 	"stakeholders/service"
 )
 
@@ -82,6 +83,13 @@ func main() {
 	}
 
 	r := gin.Default()
+	grpcPort := getEnvOrDefault("STAKEHOLDERS_GRPC_PORT", "9091")
+	go func() {
+		if err := rpc.StartGRPCServer(grpcPort, authService, profileService); err != nil {
+			log.Fatalf("neuspesno pokretanje gRPC servera: %v", err)
+		}
+	}()
+
 	r.GET("/stakeholders", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Stakeholders service radi"})
 	})

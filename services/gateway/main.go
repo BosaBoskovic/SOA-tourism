@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"log"
@@ -9,6 +10,14 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+
+	stakeholdersv1 "soa-tourism-proto/stakeholders/v1"
 )
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -47,6 +56,12 @@ func rewritePrefix(prefix, replacement string, next http.Handler) http.HandlerFu
 		r.URL.Path = replacement + strings.TrimPrefix(r.URL.Path, prefix)
 		next.ServeHTTP(w, r)
 	}
+}
+
+func writeJSON(w http.ResponseWriter, statusCode int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(payload)
 }
 
 // extractUsernameFromJWT čita Subject claim iz JWT tokena bez verifikacije potpisa.
@@ -92,6 +107,17 @@ func extractUsernameFromJWT(authHeader string) string {
 	return ""
 }
 
+func extractBearerToken(authHeader string) string {
+	if strings.TrimSpace(authHeader) == "" {
+		return ""
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
+}
+
 // withUsername je middleware koji iz JWT-a izvlači username i dodaje X-Username header
 func withUsername(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -105,18 +131,116 @@ func withUsername(next http.Handler) http.Handler {
 
 func main() {
 	stakeholdersURL := getEnvOrDefault("STAKEHOLDERS_URL", "http://localhost:8081")
-	blogURL         := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
-	followersURL    := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
-	toursURL        := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
+	stakeholdersGRPCURL := getEnvOrDefault("STAKEHOLDERS_GRPC_URL", "localhost:9091")
+	blogURL := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
+	followersURL := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
+	toursURL := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
+
+	grpcCtx, grpcCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer grpcCancel()
+	grpcConn, err := grpc.DialContext(
+		grpcCtx,
+		stakeholdersGRPCURL,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	)
+	if err != nil {
+		log.Fatalf("neuspesno povezivanje sa stakeholders gRPC servisom: %v", err)
+	}
+	defer grpcConn.Close()
+	stakeholdersGrpcClient := stakeholdersv1.NewStakeholdersServiceClient(grpcConn)
 
 	stakeholdersProxy := newReverseProxy(stakeholdersURL)
-	blogProxy         := newReverseProxy(blogURL)
-	followersProxy    := newReverseProxy(followersURL)
-	toursProxy        := newReverseProxy(toursURL)
+	blogProxy := newReverseProxy(blogURL)
+	followersProxy := newReverseProxy(followersURL)
+	toursProxy := newReverseProxy(toursURL)
 
 	mux := http.NewServeMux()
 
 	// --- Stakeholders servis ---
+	mux.HandleFunc("/stakeholders/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "Metod nije dozvoljen"})
+			return
+		}
+		var req stakeholdersv1.LoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Neispravan zahtev"})
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		resp, err := stakeholdersGrpcClient.Login(ctx, &req)
+		if err != nil {
+			st, ok := status.FromError(err)
+			if !ok {
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri prijavi"})
+				return
+			}
+			switch st.Code() {
+			case codes.InvalidArgument:
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Neispravan zahtev"})
+			case codes.Unauthenticated:
+				if st.Message() == "invalid_credentials" {
+					writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Pogresni kredencijali"})
+					return
+				}
+				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Neispravan zahtev"})
+			case codes.PermissionDenied:
+				writeJSON(w, http.StatusForbidden, map[string]any{"error": "Nalog je blokiran"})
+			default:
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri prijavi"})
+			}
+			return
+		}
+
+		accountPayload := map[string]any{}
+		if resp.Account != nil {
+			accountPayload["username"] = resp.Account.Username
+			accountPayload["email"] = resp.Account.Email
+			accountPayload["role"] = resp.Account.Role
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"message":     "Uspesna prijava",
+			"accessToken": resp.AccessToken,
+			"tokenType":   resp.TokenType,
+			"expiresIn":   resp.ExpiresIn,
+			"expiresAt":   resp.ExpiresAt,
+			"account":     accountPayload,
+		})
+	})
+	mux.HandleFunc("/stakeholders/profile", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "Metod nije dozvoljen"})
+			return
+		}
+		accessToken := extractBearerToken(r.Header.Get("Authorization"))
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		resp, err := stakeholdersGrpcClient.GetProfile(ctx, &stakeholdersv1.GetProfileRequest{
+			AccessToken: accessToken,
+		})
+		if err != nil {
+			st, ok := status.FromError(err)
+			if !ok {
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri citanju profila"})
+				return
+			}
+			switch st.Code() {
+			case codes.Unauthenticated:
+				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Neispravan ili istekao token"})
+			case codes.NotFound:
+				writeJSON(w, http.StatusNotFound, map[string]any{"error": "Profil nije pronadjen"})
+			default:
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri citanju profila"})
+			}
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"profile": resp.Profile})
+	})
 	mux.Handle("/stakeholders", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> stakeholders", r.Method, r.URL.Path)
 		stakeholdersProxy.ServeHTTP(w, r)
