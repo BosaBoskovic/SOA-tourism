@@ -33,11 +33,15 @@ func (s *KeyPointService) Create(req *model.CreateKeyPointRequest) (*model.KeyPo
 	}
 
 	// Proveri da tura postoji
-	if _, err := s.tourRepo.FindByID(tourOID); err != nil {
+	tour, err := s.tourRepo.FindByID(tourOID)
+	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, errors.New("tour not found")
 		}
 		return nil, err
+	}
+	if tour.Status != model.StatusDraft {
+		return nil, errors.New("key points can be managed only while tour is in draft status")
 	}
 
 	kp := &model.KeyPoint{
@@ -53,6 +57,9 @@ func (s *KeyPointService) Create(req *model.CreateKeyPointRequest) (*model.KeyPo
 	}
 
 	if err := s.repo.Create(kp); err != nil {
+		return nil, err
+	}
+	if err := s.updateTourLength(tourOID, req.LengthKm); err != nil {
 		return nil, err
 	}
 	return kp, nil
@@ -93,6 +100,25 @@ func (s *KeyPointService) Update(id string, req *model.UpdateKeyPointRequest) (*
 		return nil, errors.New("invalid key point ID")
 	}
 
+	kp, err := s.repo.FindByID(oid)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, errors.New("key point not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	tour, err := s.tourRepo.FindByID(kp.TourID)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, errors.New("tour not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if tour.Status != model.StatusDraft {
+		return nil, errors.New("key points can be managed only while tour is in draft status")
+	}
+
 	update := bson.M{
 		"name":        req.Name,
 		"description": req.Description,
@@ -110,18 +136,86 @@ func (s *KeyPointService) Update(id string, req *model.UpdateKeyPointRequest) (*
 		return nil, err
 	}
 
-	return s.repo.FindByID(oid)
+	updated, err := s.repo.FindByID(oid)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.updateTourLength(updated.TourID, req.LengthKm); err != nil {
+		return nil, err
+	}
+
+	return updated, nil
 }
 
-func (s *KeyPointService) Delete(id string) error {
+func (s *KeyPointService) Delete(id string, lengthKm *float64) error {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return errors.New("invalid key point ID")
+	}
+
+	kp, err := s.repo.FindByID(oid)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return errors.New("key point not found")
+	}
+	if err != nil {
+		return err
+	}
+
+	tour, err := s.tourRepo.FindByID(kp.TourID)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return errors.New("tour not found")
+	}
+	if err != nil {
+		return err
+	}
+	if tour.Status != model.StatusDraft {
+		return errors.New("key points can be managed only while tour is in draft status")
 	}
 
 	err = s.repo.Delete(oid)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return errors.New("key point not found")
 	}
-	return err
+	if err != nil {
+		return err
+	}
+
+	if err := s.normalizeKeyPointOrder(kp.TourID); err != nil {
+		return err
+	}
+
+	return s.updateTourLength(kp.TourID, lengthKm)
+}
+
+func (s *KeyPointService) updateTourLength(tourID bson.ObjectID, lengthKm *float64) error {
+	if lengthKm == nil {
+		return nil
+	}
+
+	update := bson.M{
+		"lengthKm": *lengthKm,
+		"updatedAt": time.Now(),
+	}
+
+	return s.tourRepo.Update(tourID, update)
+}
+
+func (s *KeyPointService) normalizeKeyPointOrder(tourID bson.ObjectID) error {
+	kps, err := s.repo.FindByTour(tourID)
+	if err != nil {
+		return err
+	}
+
+	for i, kp := range kps {
+		newOrder := i + 1
+		if kp.Order == newOrder {
+			continue
+		}
+		update := bson.M{"order": newOrder}
+		if err := s.repo.Update(kp.ID, update); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

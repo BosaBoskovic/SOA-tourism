@@ -12,3 +12,22 @@
 .btn-primary { background: var(--color-primary); color: white; }
 .btn-outline { background: transparent; border: 1px solid var(--color-border); color: var(--color-text-primary); }
 .error { color: var(--color-error); margin-bottom: 1rem; }
+.step-label { color: var(--color-text-secondary); font-weight: 600; margin-bottom: 0.75rem; }
+.section { margin-top: 1.5rem; }
+.map { height: 360px; border-radius: 0.5rem; border: 1px solid var(--color-border); margin: 0.75rem 0 1rem; }
+.kp-list { display: grid; gap: 0.75rem; margin-top: 1rem; }
+.kp-item { display: grid; grid-template-columns: auto 1fr auto; gap: 0.75rem; align-items: center; border: 1px solid var(--color-border); border-radius: 0.5rem; padding: 0.75rem; }
+.kp-img { width: 72px; height: 72px; object-fit: cover; border-radius: 0.5rem; }
+.kp-actions { display: flex; align-items: center; gap: 0.5rem; }
+.btn-delete { background: transparent; border: 1px solid var(--color-border); padding: 0.4rem 0.6rem; border-radius: 0.375rem; cursor: pointer; }
+.form-row { display: grid; gap: 0.75rem; margin-bottom: 0.75rem; }
+.image-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 0.5rem; border: 1px solid var(--color-border); }
+.selected-coords { color: var(--color-success); font-weight: 600; }
+.hint { color: var(--color-text-secondary); margin-bottom: 0.5rem; }
+.tour-desc { color: var(--color-text-secondary); }
+.actions { margin-top: 1.5rem; display: flex; justify-content: flex-end; }
+
+@media (min-width: 900px) {
+	.page-container { max-width: 900px; }
+	.form-row { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; }
+}

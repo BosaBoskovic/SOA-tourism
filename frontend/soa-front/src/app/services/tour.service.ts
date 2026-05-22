@@ -10,8 +10,33 @@ export interface Tour {
   difficulty: 'easy' | 'medium' | 'hard';
   tags: string[];
   status: string;
+  lengthKm: number;
+  durations: TourDuration[];
   price: number;
   createdAt: string;
+  updatedAt?: string;
+  publishedAt?: string;
+  archivedAt?: string;
+}
+
+export interface TourPreview {
+  id: string;
+  authorId: string;
+  name: string;
+  description: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  tags: string[];
+  lengthKm: number;
+  price: number;
+  publishedAt?: string;
+  firstKeyPoint?: KeyPoint;
+}
+
+export type TransportType = 'walk' | 'bike' | 'car';
+
+export interface TourDuration {
+  transport: TransportType;
+  minutes: number;
 }
 
 export interface CreateTourRequest {
@@ -20,6 +45,16 @@ export interface CreateTourRequest {
   description: string;
   difficulty: string;
   tags: string[];
+  durations?: TourDuration[];
+}
+
+export interface UpdateTourRequest {
+  name: string;
+  description: string;
+  difficulty: string;
+  tags: string[];
+  durations: TourDuration[];
+  price: number;
 }
 
 export interface KeyPoint {
@@ -31,6 +66,10 @@ export interface KeyPoint {
   longitude: number;
   imageUrl: string;
   order: number;
+}
+
+export interface KeyPointRequest extends Omit<KeyPoint, 'id'> {
+  lengthKm?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -51,7 +90,11 @@ export class TourService {
     return this.http.get<Tour>(`${this.apiUrl}/tours/${id}`);
   }
 
-  createKeyPoint(data: Omit<KeyPoint, 'id'>): Observable<KeyPoint> {
+  updateTour(id: string, data: UpdateTourRequest): Observable<Tour> {
+    return this.http.put<Tour>(`${this.apiUrl}/tours/${id}`, data);
+  }
+
+  createKeyPoint(data: KeyPointRequest): Observable<KeyPoint> {
     return this.http.post<KeyPoint>(`${this.apiUrl}/keypoints`, data);
   }
 
@@ -59,20 +102,30 @@ export class TourService {
     return this.http.get<KeyPoint[]>(`${this.apiUrl}/keypoints/tour/${tourId}`);
   }
 
-  deleteKeyPoint(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/keypoints/${id}`);
+  deleteKeyPoint(id: string, lengthKm?: number): Observable<any> {
+    const url = lengthKm === undefined
+      ? `${this.apiUrl}/keypoints/${id}`
+      : `${this.apiUrl}/keypoints/${id}?lengthKm=${lengthKm}`;
+    return this.http.delete(url);
   }
 
-  getAllTours(): Observable<Tour[]> {
-  return this.http.get<Tour[]>(`${this.apiUrl}/tours`);
-}
-publishTour(tourId: string): Observable<Tour> {
-  return this.http.put<Tour>(`${this.apiUrl}/tours/${tourId}/publish`, {});
-}
+  getAllTours(): Observable<TourPreview[]> {
+    return this.http.get<TourPreview[]>(`${this.apiUrl}/tours`);
+  }
 
-updateKeyPoint(id: string, data: Omit<KeyPoint, 'id'>): Observable<KeyPoint> {
-  return this.http.put<KeyPoint>(`${this.apiUrl}/keypoints/${id}`, data);
-}
+  publishTour(tourId: string): Observable<Tour> {
+    return this.http.put<Tour>(`${this.apiUrl}/tours/${tourId}/publish`, {});
+  }
 
+  archiveTour(tourId: string): Observable<Tour> {
+    return this.http.put<Tour>(`${this.apiUrl}/tours/${tourId}/archive`, {});
+  }
 
+  activateTour(tourId: string): Observable<Tour> {
+    return this.http.put<Tour>(`${this.apiUrl}/tours/${tourId}/activate`, {});
+  }
+
+  updateKeyPoint(id: string, data: KeyPointRequest): Observable<KeyPoint> {
+    return this.http.put<KeyPoint>(`${this.apiUrl}/keypoints/${id}`, data);
+  }
 }

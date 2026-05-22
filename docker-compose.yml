@@ -21,8 +21,8 @@ services:
 
   stakeholders:
     build:
-      context: ./services/stakeholders
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/stakeholders/Dockerfile
     container_name: soa-stakeholders
     ports:
       - "8081:8081"
@@ -139,14 +139,15 @@ services:
   # Svi zahtjevi idu na :8080, gateway rutira dalje
   gateway:
     build:
-      context: ./services/gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/gateway/Dockerfile
     container_name: soa-gateway
     ports:
       - "8080:8080"
     environment:
       PORT: 8080
       STAKEHOLDERS_URL: http://soa-stakeholders:8081
+      STAKEHOLDERS_GRPC_URL: soa-stakeholders:9091
       BLOG_URL: http://soa-blog:8082
       FOLLOWERS_URL: http://soa-followers:8084
       TOURS_URL: http://soa-tours:8085

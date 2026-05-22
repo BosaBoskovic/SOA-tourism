@@ -117,3 +117,41 @@ func (r *TourRepository) UpdateStatus(id bson.ObjectID, status model.TourStatus)
 
 	return nil
 }
+
+func (r *TourRepository) UpdateStatusWithTimestamps(id bson.ObjectID, status model.TourStatus, publishedAt *time.Time, archivedAt *time.Time) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	setFields := bson.M{
+		"status":    status,
+		"updatedAt": time.Now(),
+	}
+	if publishedAt != nil {
+		setFields["publishedAt"] = *publishedAt
+	}
+	if archivedAt != nil {
+		setFields["archivedAt"] = *archivedAt
+	}
+
+	update := bson.M{"$set": setFields}
+
+	unsetFields := bson.M{}
+	if publishedAt == nil {
+		unsetFields["publishedAt"] = ""
+	}
+	if archivedAt == nil {
+		unsetFields["archivedAt"] = ""
+	}
+	if len(unsetFields) > 0 {
+		update["$unset"] = unsetFields
+	}
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"_id": id}, update)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
+}

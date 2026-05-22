@@ -4,7 +4,8 @@
     <a routerLink="/tours" class="btn btn-outline">← Nazad</a>
   </div>
 
-  <div class="form-card">
+  <div class="form-card" *ngIf="!createdTour">
+    <p class="step-label">Korak 1/2 · Osnovni podaci</p>
     <p *ngIf="error" class="error">{{ error }}</p>
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()">
@@ -51,5 +52,71 @@
         {{ loading ? 'Kreiranje...' : 'Kreiraj turu' }}
       </button>
     </form>
+  </div>
+
+  <div class="form-card" *ngIf="createdTour">
+    <p class="step-label">Korak 2/2 · Ključne tačke</p>
+    <p class="hint">Tura je kreirana. Dodajte ključne tačke na mapi.</p>
+
+    <section class="section">
+      <h3>{{ createdTour.name }}</h3>
+      <p class="tour-desc">{{ createdTour.description }}</p>
+    </section>
+
+    <section class="section">
+      <h3>Ključne tačke</h3>
+      <p class="hint">Kliknite na mapu da izaberete lokaciju, zatim popunite formu ispod.</p>
+
+      <div id="tour-map" class="map"></div>
+
+      <div class="kp-list" *ngIf="keyPoints.length > 0">
+        <div *ngFor="let kp of keyPoints" class="kp-item">
+          <img *ngIf="kp.imageUrl" [src]="kp.imageUrl" class="kp-img" />
+          <div>
+            <strong>{{ kp.order }}. {{ kp.name }}</strong>
+            <p>{{ kp.description }}</p>
+            <small>📍 {{ kp.latitude | number:'1.4-4' }}, {{ kp.longitude | number:'1.4-4' }}</small>
+          </div>
+          <div class="kp-actions">
+            <button class="btn-delete" type="button" (click)="deleteKeyPoint(kp)">🗑</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="kp-form">
+        <h4>Dodaj ključnu tačku</h4>
+        <p *ngIf="selectedLatLng" class="selected-coords">
+          ✅ Lokacija: {{ selectedLatLng.lat | number:'1.4-4' }}, {{ selectedLatLng.lng | number:'1.4-4' }}
+        </p>
+        <p *ngIf="!selectedLatLng" class="hint">Kliknite na mapu da odaberete lokaciju</p>
+
+        <form [formGroup]="kpForm" (ngSubmit)="addKeyPoint()">
+          <div class="form-row">
+            <input class="form-control" formControlName="name" placeholder="Naziv (obavezno)" />
+            <input class="form-control" formControlName="description" placeholder="Opis" />
+            <input
+              class="form-control"
+              type="file"
+              accept="image/*"
+              (change)="onKeyPointImageSelected($event)"
+            />
+
+            <img
+              *ngIf="kpForm.value.imageUrl"
+              [src]="kpForm.value.imageUrl"
+              class="image-preview"
+            />
+          </div>
+          <p *ngIf="kpError" class="error">{{ kpError }}</p>
+          <button type="submit" class="btn btn-primary" [disabled]="kpLoading">
+            {{ kpLoading ? 'Čuvanje...' : 'Dodaj tačku' }}
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button type="button" class="btn btn-outline" (click)="finishSetup()">Završi</button>
+    </div>
   </div>
 </div>

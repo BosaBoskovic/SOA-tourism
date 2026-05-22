@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { TourService, Tour } from '../../services/tour.service';
+import { TourService, Tour, TourPreview } from '../../services/tour.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { ReviewFormComponent } from '../../reviews/review-form/review-form.component';
 import { ReviewService } from '../../services/review.service';
@@ -14,12 +14,12 @@ import { ReviewService } from '../../services/review.service';
   styleUrl: './tour-list.component.css'
 })
 export class TourListComponent implements OnInit {
-  tours: Tour[] = [];
+  tours: Array<Tour | TourPreview> = [];
   loading = false;
   error = '';
   currentUser: any;
 
-  selectedTourForReview: Tour | null = null;
+  selectedTourForReview: Tour | TourPreview | null = null;
 
   constructor(
     private tourService: TourService,
@@ -72,7 +72,7 @@ export class TourListComponent implements OnInit {
     this.tourService.getAllTours().subscribe({
       next: (tours) => {
         this.zone.run(() => {
-          this.tours = tours.filter(tour => tour.status === 'published');
+          this.tours = tours;
           this.loading = false;
           this.cdr.detectChanges();
         });
@@ -87,7 +87,7 @@ export class TourListComponent implements OnInit {
     });
   }
 
-  openReviewForm(tour: Tour): void {
+  openReviewForm(tour: Tour | TourPreview): void {
     this.selectedTourForReview = tour;
   }
 
@@ -131,7 +131,43 @@ export class TourListComponent implements OnInit {
     });
   }
 
+  archiveTour(tour: Tour): void {
+    this.tourService.archiveTour(tour.id).subscribe({
+      next: (updatedTour) => {
+        this.zone.run(() => {
+          tour.status = updatedTour.status;
+          this.cdr.detectChanges();
+        });
+
+        alert('Tura je uspešno arhivirana.');
+      },
+      error: (err) => {
+        alert(err.error?.error || 'Greška pri arhiviranju ture.');
+      }
+    });
+  }
+
+  activateTour(tour: Tour): void {
+    this.tourService.activateTour(tour.id).subscribe({
+      next: (updatedTour) => {
+        this.zone.run(() => {
+          tour.status = updatedTour.status;
+          this.cdr.detectChanges();
+        });
+
+        alert('Tura je uspešno aktivirana.');
+      },
+      error: (err) => {
+        alert(err.error?.error || 'Greška pri aktiviranju ture.');
+      }
+    });
+  }
+
   difficultyLabel(d: string): string {
     return { easy: 'Lako', medium: 'Srednje', hard: 'Teško' }[d] ?? d;
+  }
+
+  hasStatus(tour: Tour | TourPreview): tour is Tour {
+    return (tour as Tour).status !== undefined;
   }
 }

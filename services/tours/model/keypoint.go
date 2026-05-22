@@ -26,6 +26,7 @@ type CreateKeyPointRequest struct {
 	Longitude   float64 `json:"longitude"`
 	ImageURL    string  `json:"imageUrl"`
 	Order       int     `json:"order"`
+	LengthKm    *float64 `json:"lengthKm"`
 }
 
 type UpdateKeyPointRequest struct {
@@ -35,4 +36,5 @@ type UpdateKeyPointRequest struct {
 	Longitude   float64 `json:"longitude"`
 	ImageURL    string  `json:"imageUrl"`
 	Order       int     `json:"order"`
+	LengthKm    *float64 `json:"lengthKm"`
 }
