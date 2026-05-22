@@ -22,9 +22,9 @@ func NewProfileHandler(svc *service.ProfileService, authSvc *service.AuthService
 func (h *ProfileHandler) RegisterRoutes(r *gin.Engine) {
 	profile := r.Group("/stakeholders/profile")
 	profile.Use(h.authMiddleware())
+	profile.GET("/search", h.searchProfiles)
 	profile.GET("", h.getProfile)
 	profile.PUT("", h.updateProfile)
-	profile.GET("/search", h.searchProfiles)
 	profile.GET("/:username", h.getPublicProfile)
 }
 
@@ -43,6 +43,50 @@ func (h *ProfileHandler) getProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"profile": resp})
+}
+
+func (h *ProfileHandler) getPublicProfile(c *gin.Context) {
+	username := strings.TrimSpace(c.Param("username"))
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nedostaje korisnicko ime"})
+		return
+	}
+
+	resp, err := h.svc.GetPublicProfile(c.Request.Context(), username)
+	if err != nil {
+		switch err.Error() {
+		case "profile_not_found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "Profil nije pronadjen"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri citanju profila"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"profile": resp})
+}
+
+func (h *ProfileHandler) searchProfiles(c *gin.Context) {
+	username := strings.TrimSpace(c.Query("username"))
+	role := strings.TrimSpace(c.Query("role"))
+	limit := 12
+
+	if rawLimit := strings.TrimSpace(c.Query("limit")); rawLimit != "" {
+		parsedLimit, err := strconv.Atoi(rawLimit)
+		if err != nil || parsedLimit <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Neispravan limit"})
+			return
+		}
+		limit = parsedLimit
+	}
+
+	resp, err := h.svc.SearchProfiles(c.Request.Context(), username, role, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri pretrazi korisnika"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"profiles": resp})
 }
 
 func (h *ProfileHandler) updateProfile(c *gin.Context) {
