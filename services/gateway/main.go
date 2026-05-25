@@ -337,6 +337,22 @@ func main() {
 		toursProxy.ServeHTTP(w, r)
 	})))
 
+	paymentsURL := getEnvOrDefault("PAYMENTS_URL", "http://localhost:8086")
+	paymentsProxy := newReverseProxy(paymentsURL)
+
+	mux.Handle("/shopping-cart", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> payments", r.Method, r.URL.Path)
+		paymentsProxy.ServeHTTP(w, r)
+	})))
+	mux.Handle("/shopping-cart/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> payments", r.Method, r.URL.Path)
+		paymentsProxy.ServeHTTP(w, r)
+	})))
+	mux.Handle("/checkout/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> payments", r.Method, r.URL.Path)
+		paymentsProxy.ServeHTTP(w, r)
+	})))
+
 	// Fallback
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] Nepoznata ruta: %s %s", r.Method, r.URL.Path)
