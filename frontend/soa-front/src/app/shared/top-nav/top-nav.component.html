@@ -50,6 +50,16 @@
           Pretrazi ture
         </a>
 
+        <a
+          routerLink="/cart"
+          *ngIf="currentUser.role === 'tourist'"
+          (click)="menuOpen = false"
+          class="cart-link"
+        >
+          🛒 Korpa
+          <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+        </a>
+
         <a routerLink="/position-simulator" *ngIf="currentUser?.role === 'tourist'">
           Trenutna lokacija
         </a>
