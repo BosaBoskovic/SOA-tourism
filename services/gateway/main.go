@@ -353,6 +353,15 @@ func main() {
 		paymentsProxy.ServeHTTP(w, r)
 	})))
 
+	mux.Handle("/executions", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+		toursProxy.ServeHTTP(w, r)
+	})))
+	mux.Handle("/executions/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
+		toursProxy.ServeHTTP(w, r)
+	})))
+
 	// Fallback
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] Nepoznata ruta: %s %s", r.Method, r.URL.Path)

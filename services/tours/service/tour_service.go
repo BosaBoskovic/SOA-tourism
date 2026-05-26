@@ -13,12 +13,14 @@ import (
 type TourService struct {
 	repo         *repository.TourRepository
 	keyPointRepo *repository.KeyPointRepository
+	purchaseRepo *repository.PurchaseRepository
 }
 
-func NewTourService(repo *repository.TourRepository, keyPointRepo *repository.KeyPointRepository) *TourService {
+func NewTourService(repo *repository.TourRepository, keyPointRepo *repository.KeyPointRepository, purchaseRepo *repository.PurchaseRepository) *TourService {
 	return &TourService{
-		repo: repo,
+		repo:         repo,
 		keyPointRepo: keyPointRepo,
+		purchaseRepo: purchaseRepo,
 	}
 }
 
@@ -255,4 +257,55 @@ func validateDurations(durations []model.TourDuration) error {
 		}
 	}
 	return nil
+}
+
+func (s *TourService) GetByIDForTourist(id string, touristID string) (interface{}, error) {
+	oid, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, errors.New("invalid tour ID")
+	}
+
+	tour, err := s.repo.FindByID(oid)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, errors.New("tour not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Ako nema touristID ili tura nije kupljena, vrati preview bez svih keypointa
+	if touristID == "" {
+		return tour, nil
+	}
+
+	purchased, err := s.purchaseRepo.HasToken(touristID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if purchased {
+		// Kupio je — vrati sve keypointe
+		keyPoints, err := s.keyPointRepo.FindByTour(oid)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"tour":      tour,
+			"keyPoints": keyPoints,
+			"purchased": true,
+		}, nil
+	}
+
+	// Nije kupio — vrati samo prvu ključnu tačku
+	firstKP, err := s.keyPointRepo.FindFirstByTour(oid)
+	keyPoints := []model.KeyPoint{}
+	if err == nil {
+		keyPoints = append(keyPoints, *firstKP)
+	}
+
+	return map[string]interface{}{
+		"tour":      tour,
+		"keyPoints": keyPoints,
+		"purchased": false,
+	}, nil
 }

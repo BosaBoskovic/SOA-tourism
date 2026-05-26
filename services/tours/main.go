@@ -22,7 +22,6 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	// ── Database ──────────────────────────────────────────────
 	mongoURI := os.Getenv("MONGODB_URI")
 	if mongoURI == "" {
 		mongoURI = "localhost:27017"
@@ -49,27 +48,29 @@ func main() {
 		}
 	}()
 
-	// ── Repositories ──────────────────────────────────────────
+	// Repositories
 	tourRepo := repository.NewTourRepository(db)
 	keyPointRepo := repository.NewKeyPointRepository(db)
 	reviewRepo := repository.NewReviewRepository(db)
 	touristPositionRepo := repository.NewTouristPositionRepository(db)
+	execRepo := repository.NewTourExecutionRepository(db)
+	purchaseRepo := repository.NewPurchaseRepository()
 
-	// ── Services ──────────────────────────────────────────────
-	tourService := service.NewTourService(tourRepo, keyPointRepo)
+	// Services
+	tourService := service.NewTourService(tourRepo, keyPointRepo, purchaseRepo)
 	keyPointService := service.NewKeyPointService(keyPointRepo, tourRepo)
 	reviewService := service.NewReviewService(reviewRepo, tourRepo)
 	touristPositionService := service.NewTouristPositionService(touristPositionRepo)
+	execService := service.NewTourExecutionService(execRepo, tourRepo, keyPointRepo, purchaseRepo)
 
-	// ── Handlers ──────────────────────────────────────────────
+	// Handlers
 	tourHandler := handler.NewTourHandler(tourService)
 	keyPointHandler := handler.NewKeyPointHandler(keyPointService)
 	reviewHandler := handler.NewReviewHandler(reviewService)
 	touristPositionHandler := handler.NewTouristPositionHandler(touristPositionService)
+	execHandler := handler.NewTourExecutionHandler(execService)
 
-	// ── Router ────────────────────────────────────────────────
 	r := mux.NewRouter()
-	//r.Use(corsMiddleware)
 
 	// Tours
 	r.HandleFunc("/tours", tourHandler.Create).Methods(http.MethodPost)
@@ -94,13 +95,21 @@ func main() {
 	r.HandleFunc("/reviews/{id}", reviewHandler.GetByID).Methods(http.MethodGet)
 	r.HandleFunc("/reviews/{id}", reviewHandler.Delete).Methods(http.MethodDelete)
 
-	// Tourist Position Simulator
+	// Tourist Position
 	r.HandleFunc("/tourist-position", touristPositionHandler.Update).Methods(http.MethodPut)
 	r.HandleFunc("/tourist-position/{touristId}", touristPositionHandler.GetByTouristID).Methods(http.MethodGet)
 
+	// Tour Executions
+	r.HandleFunc("/executions", execHandler.Start).Methods(http.MethodPost)
+	r.HandleFunc("/executions/{id}", execHandler.GetByID).Methods(http.MethodGet)
+	r.HandleFunc("/executions/tourist/{touristId}", execHandler.GetByTourist).Methods(http.MethodGet)
+	r.HandleFunc("/executions/{id}/check-keypoint", execHandler.CheckKeyPoint).Methods(http.MethodPost)
+	r.HandleFunc("/executions/{id}/complete", execHandler.Complete).Methods(http.MethodPut)
+	r.HandleFunc("/executions/{id}/abandon", execHandler.Abandon).Methods(http.MethodPut)
+
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8083"
+		port = "8085"
 	}
 
 	fmt.Printf("Tour service running on port %s\n", port)
@@ -114,16 +123,3 @@ func main() {
 	<-quit
 	fmt.Println("Shutting down tour service...")
 }
-
-/*func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}*/

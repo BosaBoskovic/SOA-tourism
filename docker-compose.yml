@@ -129,6 +129,7 @@ services:
     environment:
       MONGODB_URI: soa-mongodb-tours:27017  
       PORT: 8085
+      PAYMENTS_URL: http://soa-payments:8086
     depends_on:
       mongodb-tours:
         condition: service_healthy           

@@ -34,11 +34,12 @@ func (h *TourHandler) Create(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusCreated, tour)
 }
 
-// GET /tours/{id}
+// GET /tours/{id}?touristId=xxx
 func (h *TourHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
+	touristID := r.URL.Query().Get("touristId")
 
-	tour, err := h.service.GetByID(id)
+	tour, err := h.service.GetByIDForTourist(id, touristID)
 	if err != nil {
 		respondError(w, http.StatusNotFound, err.Error())
 		return
