@@ -13,6 +13,19 @@
           <span>🏔 {{ tour.difficulty }}</span>
           <span *ngFor="let tag of tour.tags" class="tag">{{ tag }}</span>
         </div>
+
+        <!-- Dugme za pokretanje ture - samo turistima koji su kupili turu -->
+        <div *ngIf="isTourist() && tourPurchased" class="start-tour-section">
+          <a [routerLink]="['/tours', tour.id, 'execute']" class="btn btn-start-tour">
+            ▶ Pokreni turu
+          </a>
+          <p class="start-hint">Provjerite da ste postavili lokaciju u <a routerLink="/position-simulator">Position Simulatoru</a> prije pokretanja.</p>
+        </div>
+
+        <div *ngIf="isTourist() && !tourPurchased" class="not-purchased-hint">
+          🔒 Kupite turu da biste je pokrenuli
+          <a routerLink="/cart" class="btn btn-outline btn-sm">Idi na korpu</a>
+        </div>
       </div>
     </div>
 

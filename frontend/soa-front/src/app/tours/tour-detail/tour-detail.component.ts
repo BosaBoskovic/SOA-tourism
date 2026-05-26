@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TourService, Tour, TourDuration, TourPreview, KeyPoint, TransportType } from '../../services/tour.service';
 import { ReviewService, Review } from '../../services/review.service';
 import { AuthService } from '../../auth/services/auth.service';
+import { CartService } from '../../services/cart.service';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 @Component({
@@ -20,6 +21,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   currentUser: any;
   loading = true;
   error = '';
+  tourPurchased = false;
   
 
   private map: any = null;
@@ -49,6 +51,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
     private tourService: TourService,
     private reviewService: ReviewService,
     private authService: AuthService,
+    private cartService: CartService,
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
@@ -85,6 +88,13 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
 
       if (u?.role === 'tourist') {
         this.loadTourPreview(id);
+        this.cartService.hasPurchased(u.username, id).subscribe({
+          next: (res) => {
+            this.tourPurchased = res.hasPurchased;
+            this.cdr.detectChanges();
+          },
+          error: () => { this.tourPurchased = false; }
+        });
       } else {
         this.loadTourDetail(id);
       }

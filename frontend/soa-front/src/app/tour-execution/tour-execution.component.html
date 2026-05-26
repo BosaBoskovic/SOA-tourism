@@ -1,0 +1,89 @@
+<div class="page-container">
+    <p *ngIf="loading" class="loading-text">Pokretanje ture...</p>
+    <p *ngIf="error" class="error-box">{{ error }}
+      <a *ngIf="error.includes('lokaciju')" routerLink="/position-simulator" class="btn btn-primary btn-sm">
+        Postavi lokaciju
+      </a>
+    </p>
+  
+    <div *ngIf="!loading && execution">
+  
+      <!-- Header -->
+      <div class="execution-header">
+        <a [routerLink]="['/tours', tourId]" class="back-link">← Nazad na turu</a>
+  
+        <div class="status-row">
+          <span class="status-badge" [class]="'status-' + execution.status">
+            {{ execution.status === 'active' ? '▶ Aktivna' :
+               execution.status === 'completed' ? '✅ Završena' : '⛔ Napuštena' }}
+          </span>
+          <span class="progress-text">
+            {{ completedCount }} / {{ totalKeyPoints }} ključnih tačaka
+          </span>
+        </div>
+  
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill"
+               [style.width.%]="totalKeyPoints > 0 ? (completedCount / totalKeyPoints) * 100 : 0">
+          </div>
+        </div>
+      </div>
+  
+      <!-- Mapa -->
+      <div id="execution-map" class="execution-map"></div>
+  
+      <!-- Status poruka -->
+      <div *ngIf="lastCheckMessage" class="check-message" [class.reached]="lastReachedKeyPoint">
+        {{ lastCheckMessage }}
+      </div>
+  
+      <p *ngIf="isActive" class="polling-info">
+        🔄 Automatska provjera pozicije svakih 10 sekundi
+      </p>
+  
+      <!-- Akcije -->
+      <div *ngIf="isActive" class="action-buttons">
+        <button type="button" class="btn btn-complete" (click)="completeTour()">
+          ✅ Završi turu
+        </button>
+        <button type="button" class="btn btn-abandon" (click)="abandonTour()">
+          ⛔ Napusti turu
+        </button>
+      </div>
+  
+      <div *ngIf="!isActive" class="finished-actions">
+        <a [routerLink]="['/tours', tourId]" class="btn btn-primary">
+          Vrati se na turu
+        </a>
+        <a routerLink="/tours" class="btn btn-outline">
+          Pretraži ture
+        </a>
+      </div>
+  
+      <!-- Lista ključnih tačaka -->
+      <div class="keypoints-section">
+        <h3>Ključne tačke</h3>
+        <div class="kp-list">
+          <div *ngFor="let kp of keyPoints" class="kp-item" [class.kp-done]="isKeyPointCompleted(kp)">
+            <div class="kp-number" [class.done]="isKeyPointCompleted(kp)">
+              {{ isKeyPointCompleted(kp) ? '✓' : kp.order }}
+            </div>
+            <div class="kp-info">
+              <strong>{{ kp.name }}</strong>
+              <p>{{ kp.description }}</p>
+            </div>
+            <span *ngIf="isKeyPointCompleted(kp)" class="kp-reached-badge">Posećeno ✅</span>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Info o sesiji -->
+      <div class="session-info">
+        <p>Počelo: <strong>{{ execution.startedAt | date:'dd.MM.yyyy HH:mm' }}</strong></p>
+        <p *ngIf="execution.completedAt">Završeno: <strong>{{ execution.completedAt | date:'dd.MM.yyyy HH:mm' }}</strong></p>
+        <p *ngIf="execution.abandonedAt">Napušteno: <strong>{{ execution.abandonedAt | date:'dd.MM.yyyy HH:mm' }}</strong></p>
+        <p>Zadnja aktivnost: <strong>{{ execution.lastActivityAt | date:'dd.MM.yyyy HH:mm:ss' }}</strong></p>
+      </div>
+  
+    </div>
+  </div>
