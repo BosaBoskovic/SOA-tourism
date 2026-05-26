@@ -1,98 +1,123 @@
+<app-top-nav></app-top-nav>
+
 <div class="page-container">
-    <div class="page-header">
+  <div class="page-header">
+    <div class="page-title">
       <h2>🛒 Moja korpa</h2>
+      <span *ngIf="itemCount > 0" class="item-count-badge">{{ itemCount }} stavki</span>
+    </div>
+    <div class="header-actions">
+      <a routerLink="/tours" class="btn btn-outline">← Nastavi kupovinu</a>
       <button
         *ngIf="!showTokens"
         type="button"
-        class="btn btn-outline"
+        class="btn btn-ghost"
         (click)="loadPurchasedTokens()"
       >
-        Prikaži kupljene ture
+        🎫 Kupljene ture
       </button>
     </div>
-  
-    <p *ngIf="loading" class="loading-text">Učitavanje korpe...</p>
-    <p *ngIf="error" class="error">{{ error }}</p>
-    <p *ngIf="successMessage" class="success">{{ successMessage }}</p>
-  
-    <!-- KORPA -->
-    <div *ngIf="!loading && !showTokens">
-      <div *ngIf="itemCount === 0" class="empty-state">
-        <div class="empty-icon">🛒</div>
-        <p>Vaša korpa je prazna.</p>
-        <a routerLink="/tours" class="btn btn-primary">Pretraži ture</a>
-      </div>
-  
-      <div *ngIf="itemCount > 0">
-        <div class="cart-items">
-          <div *ngFor="let item of cart!.items" class="cart-item">
-            <div class="item-info">
-              <h3>{{ item.tourName }}</h3>
-              <span class="item-price">{{ item.price }} coins</span>
-            </div>
-            <button
-              type="button"
-              class="btn-remove"
-              (click)="removeItem(item.id)"
-              title="Ukloni iz korpe"
-            >
-              ✕
-            </button>
+  </div>
+
+  <p *ngIf="loading" class="loading-text">Učitavanje korpe...</p>
+  <p *ngIf="error" class="error">{{ error }}</p>
+  <div *ngIf="successMessage" class="success">
+    <span>✅ {{ successMessage }}</span>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs" *ngIf="!loading">
+    <button class="tab" [class.active]="!showTokens" (click)="showTokens = false" type="button">
+      🛒 Korpa <span *ngIf="itemCount > 0" class="tab-badge">{{ itemCount }}</span>
+    </button>
+    <button class="tab" [class.active]="showTokens" (click)="loadPurchasedTokens()" type="button">
+      🎫 Kupljene ture
+    </button>
+  </div>
+
+  <!-- KORPA -->
+  <div *ngIf="!loading && !showTokens">
+    <div *ngIf="itemCount === 0" class="empty-state">
+      <div class="empty-icon">🛒</div>
+      <p>Vaša korpa je prazna.</p>
+      <a routerLink="/tours" class="btn btn-primary">Pretraži ture</a>
+    </div>
+
+    <div *ngIf="itemCount > 0" class="cart-layout">
+      <div class="cart-items">
+        <div *ngFor="let item of cart!.items; let i = index" class="cart-item">
+          <div class="item-num">{{ i + 1 }}</div>
+          <div class="item-info">
+            <h3>{{ item.tourName }}</h3>
+            <span class="item-id">ID: {{ item.tourId }}</span>
           </div>
-        </div>
-  
-        <div class="cart-summary">
-          <div class="summary-row">
-            <span>Broj stavki:</span>
-            <strong>{{ itemCount }}</strong>
-          </div>
-          <div class="summary-row total-row">
-            <span>Ukupno:</span>
-            <strong class="total-price">{{ cart!.totalPrice }} coins</strong>
-          </div>
-  
+          <span class="item-price">{{ item.price }} coins</span>
           <button
             type="button"
-            class="btn btn-checkout"
-            [disabled]="checkoutLoading"
-            (click)="checkout()"
-          >
-            {{ checkoutLoading ? 'Obrada...' : '💳 Plati i kupi' }}
-          </button>
+            class="btn-remove"
+            (click)="removeItem(item.id)"
+            title="Ukloni iz korpe"
+          >✕</button>
         </div>
       </div>
-    </div>
-  
-    <!-- KUPLJENI TOKENI -->
-    <div *ngIf="showTokens">
-      <div class="tokens-header">
-        <h3>Kupljene ture</h3>
-        <button type="button" class="btn btn-outline btn-sm" (click)="showTokens = false">
-          ← Nazad na korpu
+
+      <div class="cart-summary">
+        <h4>Pregled narudžbe</h4>
+        <div class="summary-row" *ngFor="let item of cart!.items">
+          <span>{{ item.tourName }}</span>
+          <strong>{{ item.price }} coins</strong>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-row total-row">
+          <span>Ukupno:</span>
+          <strong class="total-price">{{ cart!.totalPrice }} coins</strong>
+        </div>
+
+        <button
+          type="button"
+          class="btn btn-checkout"
+          [disabled]="checkoutLoading"
+          (click)="checkout()"
+        >
+          {{ checkoutLoading ? '⏳ Obrada...' : '💳 Plati i kupi' }}
         </button>
+
+        <p class="secure-note">🔒 Sigurna kupovina</p>
       </div>
-  
-      <div *ngIf="purchasedTokens.length === 0" class="empty-state">
-        <div class="empty-icon">🎫</div>
-        <p>Niste još kupili nijednu turu.</p>
-      </div>
-  
-      <div *ngIf="purchasedTokens.length > 0" class="tokens-grid">
-        <div *ngFor="let token of purchasedTokens" class="token-card">
-          <div class="token-icon">🎫</div>
-          <div class="token-info">
-            <p class="token-tour-id">Tura: <strong>{{ token.tourId }}</strong></p>
-            <p class="token-date">
-              Kupljeno: {{ token.purchasedAt | date:'dd.MM.yyyy HH:mm' }}
-            </p>
-            <p class="token-value">
-              <code>{{ token.id }}</code>
-            </p>
-          </div>
+    </div>
+  </div>
+
+  <!-- KUPLJENI TOKENI -->
+  <div *ngIf="showTokens">
+    <div *ngIf="purchasedTokens.length === 0" class="empty-state">
+      <div class="empty-icon">🎫</div>
+      <p>Niste još kupili nijednu turu.</p>
+      <a routerLink="/tours" class="btn btn-primary">Pretraži ture</a>
+    </div>
+
+    <div *ngIf="purchasedTokens.length > 0" class="tokens-grid">
+      <div *ngFor="let token of purchasedTokens; let i = index" class="token-card">
+        <div class="token-num">{{ i + 1 }}</div>
+        <div class="token-icon">🎫</div>
+        <div class="token-info">
+          <h4>{{ token.tourName || 'Tura #' + (i+1) }}</h4>
+          <p class="token-tour-id">Tour ID: <code>{{ token.tourId }}</code></p>
+          <p class="token-date">
+            📅 Kupljeno: {{ token.purchasedAt | date:'dd.MM.yyyy HH:mm' }}
+          </p>
+          <p class="token-value">
+            Token: <code>{{ token.id | slice:0:12 }}...</code>
+          </p>
+        </div>
+        <div class="token-actions">
           <a [routerLink]="['/tours', token.tourId]" class="btn btn-outline btn-sm">
-            Otvori turu
+            📖 Otvori turu
+          </a>
+          <a [routerLink]="['/tours', token.tourId, 'execute']" class="btn btn-primary btn-sm">
+            ▶ Pokreni
           </a>
         </div>
       </div>
     </div>
   </div>
+</div>

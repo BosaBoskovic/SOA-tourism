@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { TopNavComponent } from '../../shared/top-nav/top-nav.component';
 import { TourService, Tour, TourPreview } from '../../services/tour.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { ReviewFormComponent } from '../../reviews/review-form/review-form.component';
@@ -10,7 +11,7 @@ import { CartService } from '../../services/cart.service';
 @Component({
   selector: 'app-tour-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReviewFormComponent],
+  imports: [CommonModule, RouterLink, ReviewFormComponent, TopNavComponent],
   templateUrl: './tour-list.component.html',
   styleUrl: './tour-list.component.css'
 })

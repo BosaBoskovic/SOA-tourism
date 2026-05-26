@@ -1,13 +1,14 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, SlicePipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CartService, ShoppingCart, TourPurchaseToken } from '../services/cart.service';
 import { AuthService } from '../auth/services/auth.service';
+import { TopNavComponent } from '../shared/top-nav/top-nav.component';
 
 @Component({
   selector: 'app-shopping-cart',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TopNavComponent, SlicePipe, DatePipe],
   templateUrl: './shopping-cart.component.html',
   styleUrl: './shopping-cart.component.css'
 })
