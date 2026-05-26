@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.28.0" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.65.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -19,6 +21,10 @@
     <ProjectReference Include="..\Payments.Application\Payments.Application.csproj" />
     <ProjectReference Include="..\Payments.Infrastructure\Payments.Infrastructure.csproj" />
     <ProjectReference Include="..\Payments.Domain\Payments.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos\payments.proto" GrpcServices="Server" />
   </ItemGroup>
 
 </Project>

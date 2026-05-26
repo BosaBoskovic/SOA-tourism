@@ -13,9 +13,10 @@ services:
       - neo4j_import:/var/lib/neo4j/import
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     networks:
       - soa-network
 
@@ -113,9 +114,10 @@ services:
       - mongodb_tours_data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     networks:
       - soa-network
 
@@ -132,7 +134,8 @@ services:
       PAYMENTS_URL: http://soa-payments:8086
     depends_on:
       mongodb-tours:
-        condition: service_healthy           
+        condition: service_healthy     
+    restart: on-failure      
     networks:
       - soa-network
 
@@ -153,12 +156,14 @@ services:
       FOLLOWERS_URL: http://soa-followers:8084
       TOURS_URL: http://soa-tours:8085
       PAYMENTS_URL: http://soa-payments:8086
+      PAYMENTS_GRPC_URL: soa-payments:9092
     depends_on:
       - stakeholders
       - blog
       - followers
       - tours
       - payments
+    restart: on-failure
     networks:
       - soa-network
 
@@ -189,12 +194,15 @@ services:
     container_name: soa-payments
     ports:
       - "8086:8086"
+      - "9092:9092"
     environment:
-      ASPNETCORE_URLS: http://+:8086
+      ASPNETCORE_URLS: http://+:8086;http://+:9092
+      PAYMENTS_GRPC_PORT: 9092
       ConnectionStrings__DefaultConnection: "Host=soa-postgres-payments;Port=5432;Database=paymentsdb;Username=postgres;Password=postgres"
     depends_on:
       postgres-payments:
         condition: service_healthy
+    restart: on-failure
     networks:
       - soa-network
 

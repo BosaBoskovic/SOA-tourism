@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
+	paymentsv1 "soa-tourism-proto/payments/v1"
 	stakeholdersv1 "soa-tourism-proto/stakeholders/v1"
 )
 
@@ -135,6 +136,7 @@ func main() {
 	blogURL := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
 	followersURL := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
 	toursURL := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
+	paymentsGRPCURL := getEnvOrDefault("PAYMENTS_GRPC_URL", "localhost:9092")
 
 	grpcCtx, grpcCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer grpcCancel()
@@ -157,6 +159,21 @@ func main() {
 	toursProxy := newReverseProxy(toursURL)
 
 	mux := http.NewServeMux()
+
+	paymentsGrpcCtx, paymentsGrpcCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer paymentsGrpcCancel()
+	paymentsGrpcConn, err := grpc.DialContext(
+		paymentsGrpcCtx,
+		paymentsGRPCURL,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
+	)
+	if err != nil {
+		log.Fatalf("neuspesno povezivanje sa payments gRPC servisom: %v", err)
+	}
+	defer paymentsGrpcConn.Close()
+	paymentsGrpcClient := paymentsv1.NewPaymentsServiceClient(paymentsGrpcConn)
 
 	// --- Stakeholders servis ---
 	mux.HandleFunc("/stakeholders/login", func(w http.ResponseWriter, r *http.Request) {
@@ -348,10 +365,67 @@ func main() {
 		log.Printf("[GATEWAY] %s %s -> payments", r.Method, r.URL.Path)
 		paymentsProxy.ServeHTTP(w, r)
 	})))
-	mux.Handle("/checkout/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[GATEWAY] %s %s -> payments", r.Method, r.URL.Path)
+	mux.HandleFunc("/checkout/", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> payments gRPC", r.Method, r.URL.Path)
+
+		// POST /checkout/{touristId} — Checkout via gRPC
+		if r.Method == http.MethodPost {
+			parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/checkout/"), "/")
+			touristId := parts[0]
+
+			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+			defer cancel()
+
+			resp, err := paymentsGrpcClient.Checkout(ctx, &paymentsv1.CheckoutRequest{
+				TouristId: touristId,
+			})
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+				return
+			}
+
+			tokens := make([]map[string]any, 0)
+			for _, t := range resp.Tokens {
+				tokens = append(tokens, map[string]any{
+					"id":          t.Id,
+					"touristId":   t.TouristId,
+					"tourId":      t.TourId,
+					"tourName":    t.TourName,
+					"price":       t.Price,
+					"purchasedAt": t.PurchasedAt,
+				})
+			}
+			writeJSON(w, http.StatusOK, tokens)
+			return
+		}
+
+		// GET /checkout/{touristId}/has-purchased/{tourId} — HasPurchased via gRPC
+		if r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/has-purchased/") {
+			parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/checkout/"), "/")
+			if len(parts) >= 3 && parts[1] == "has-purchased" {
+				touristId := parts[0]
+				tourId := parts[2]
+
+				ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+				defer cancel()
+
+				resp, err := paymentsGrpcClient.HasPurchased(ctx, &paymentsv1.HasPurchasedRequest{
+					TouristId: touristId,
+					TourId:    tourId,
+				})
+				if err != nil {
+					writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+					return
+				}
+
+				writeJSON(w, http.StatusOK, map[string]any{"hasPurchased": resp.HasPurchased})
+				return
+			}
+		}
+
+		// Ostali /checkout/ zahtevi idu HTTP proxy
 		paymentsProxy.ServeHTTP(w, r)
-	})))
+	})
 
 	mux.Handle("/executions", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
