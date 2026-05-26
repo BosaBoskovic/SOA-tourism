@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package payments.v1;
+
+option go_package = "soa-tourism-proto/payments/v1;paymentsv1";
+
+service PaymentsService {
+  rpc Checkout (CheckoutRequest) returns (CheckoutResponse);
+  rpc HasPurchased (HasPurchasedRequest) returns (HasPurchasedResponse);
+}
+
+message CheckoutRequest {
+  string tourist_id = 1;
+}
+
+message PurchaseToken {
+  string id = 1;
+  string tourist_id = 2;
+  string tour_id = 3;
+  string tour_name = 4;
+  double price = 5;
+  string purchased_at = 6;
+}
+
+message CheckoutResponse {
+  repeated PurchaseToken tokens = 1;
+}
+
+message HasPurchasedRequest {
+  string tourist_id = 1;
+  string tour_id = 2;
+}
+
+message HasPurchasedResponse {
+  bool has_purchased = 1;
+}
