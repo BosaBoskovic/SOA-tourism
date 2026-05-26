@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, PLATFORM_ID, Inject,  ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { TourService, Tour, TourDuration, TourPreview, KeyPoint, TransportType } from '../../services/tour.service';
+import { TourService, Tour, TourDuration, TourPreview, TourDetailResponse, KeyPoint, TransportType } from '../../services/tour.service';
 import { ReviewService, Review } from '../../services/review.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { CartService } from '../../services/cart.service';
@@ -87,14 +87,8 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
       this.cdr.detectChanges();
 
       if (u?.role === 'tourist') {
-        this.loadTourPreview(id);
-        this.cartService.hasPurchased(u.username, id).subscribe({
-          next: (res) => {
-            this.tourPurchased = res.hasPurchased;
-            this.cdr.detectChanges();
-          },
-          error: () => { this.tourPurchased = false; }
-        });
+        // loadTourPreview sada interno provjerava kupovinu i vraća prave keypointe
+        this.loadTourPreview(id, u.username);
       } else {
         this.loadTourDetail(id);
       }
@@ -244,23 +238,15 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private loadTourPreview(id: string): void {
-    this.tourService.getAllTours().subscribe({
-      next: (tours) => {
-        const preview = tours.find(tour => tour.id === id);
-
+  private loadTourPreview(id: string, touristId: string): void {
+    this.tourService.getTourByIdForTourist(id, touristId).subscribe({
+      next: (res: TourDetailResponse) => {
         this.zone.run(() => {
-          if (!preview) {
-            this.error = 'Tura nije pronađena.';
-            this.loading = false;
-            this.cdr.detectChanges();
-            return;
-          }
-
-          this.tour = preview;
-          this.durations = [];
-          this.priceForm.patchValue({ price: preview.price ?? 0 });
-          this.keyPoints = preview.firstKeyPoint ? [preview.firstKeyPoint] : [];
+          this.tour = res.tour;
+          this.durations = res.tour.durations ?? [];
+          this.priceForm.patchValue({ price: res.tour.price ?? 0 });
+          this.keyPoints = res.keyPoints ?? [];
+          this.tourPurchased = res.purchased;
           this.loading = false;
           this.cdr.detectChanges();
 
@@ -271,7 +257,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         });
       },
-      error: (err) => {
+      error: (err: any) => {
         this.zone.run(() => {
           this.error = err.error?.error || 'Tura nije pronađena.';
           this.loading = false;

@@ -72,6 +72,12 @@ export interface KeyPointRequest extends Omit<KeyPoint, 'id'> {
   lengthKm?: number;
 }
 
+export interface TourDetailResponse {
+  tour: Tour;
+  keyPoints: KeyPoint[];
+  purchased: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TourService {
   private apiUrl = 'http://localhost:8080';
@@ -127,5 +133,9 @@ export class TourService {
 
   updateKeyPoint(id: string, data: KeyPointRequest): Observable<KeyPoint> {
     return this.http.put<KeyPoint>(`${this.apiUrl}/keypoints/${id}`, data);
+  }
+
+  getTourByIdForTourist(id: string, touristId: string): Observable<TourDetailResponse> {
+    return this.http.get<TourDetailResponse>(`${this.apiUrl}/tours/${id}?touristId=${touristId}`);
   }
 }
