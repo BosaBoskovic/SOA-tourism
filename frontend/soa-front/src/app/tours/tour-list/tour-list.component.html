@@ -1,3 +1,4 @@
+<app-top-nav></app-top-nav>
 <div class="page-container">
   <div class="page-header">
     <h2>{{ currentUser?.role === 'tourist' ? 'Pretraži ture' : 'Moje ture' }}</h2>
@@ -88,6 +89,31 @@
         >
           Oceni turu
         </button>
+
+        <!-- Dugmad za kupovinu - samo turistima -->
+        <span
+          *ngIf="currentUser?.role === 'tourist' && isPurchased(tour)"
+          class="badge badge-purchased"
+        >
+          ✓ Kupljeno
+        </span>
+
+        <button
+          *ngIf="currentUser?.role === 'tourist' && !isPurchased(tour) && !isInCart(tour)"
+          type="button"
+          class="btn btn-cart"
+          (click)="addToCart(tour)"
+        >
+          🛒 Dodaj u korpu
+        </button>
+
+        <a
+          *ngIf="currentUser?.role === 'tourist' && !isPurchased(tour) && isInCart(tour)"
+          routerLink="/cart"
+          class="btn btn-in-cart"
+        >
+          ✓ U korpi
+        </a>
       </div>
     </div>
   </div>

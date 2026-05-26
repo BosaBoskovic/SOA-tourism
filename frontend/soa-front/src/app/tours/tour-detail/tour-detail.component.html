@@ -13,6 +13,34 @@
           <span>🏔 {{ tour.difficulty }}</span>
           <span *ngFor="let tag of tour.tags" class="tag">{{ tag }}</span>
         </div>
+
+        <!-- Dužina i trajanje - vidljivo svim korisnicima -->
+        <div class="tour-info-row">
+          <span *ngIf="tour.lengthKm && tour.lengthKm > 0" class="tour-info-badge">
+            📏 Dužina: <strong>{{ tour.lengthKm | number:'1.1-1' }} km</strong>
+          </span>
+          <ng-container *ngIf="durations.length > 0">
+            <span *ngFor="let d of durations" class="tour-info-badge">
+              🕐 {{ transportLabel(d.transport) }}: <strong>{{ d.minutes }} min</strong>
+            </span>
+          </ng-container>
+          <span *ngIf="durations.length === 0 && isTourist()" class="tour-info-badge muted">
+            🕐 Trajanje nije definisano
+          </span>
+        </div>
+
+        <!-- Dugme za pokretanje ture - samo turistima koji su kupili turu -->
+        <div *ngIf="isTourist() && tourPurchased" class="start-tour-section">
+          <a [routerLink]="['/tours', tour.id, 'execute']" class="btn btn-start-tour">
+            ▶ Pokreni turu
+          </a>
+          <p class="start-hint">Provjerite da ste postavili lokaciju u <a routerLink="/position-simulator">Position Simulatoru</a> prije pokretanja.</p>
+        </div>
+
+        <div *ngIf="isTourist() && !tourPurchased" class="not-purchased-hint">
+          🔒 Kupite turu da biste je pokrenuli
+          <a routerLink="/cart" class="btn btn-outline btn-sm">Idi na korpu</a>
+        </div>
       </div>
     </div>
 
@@ -83,6 +111,12 @@
       <h3>Ključne tačke</h3>
       <p class="hint" *ngIf="canEditKeyPoints()">Kliknite na mapu da izaberete lokaciju, zatim popunite formu ispod.</p>
 
+      <!-- Poruka turistima koji nisu kupili turu -->
+      <div *ngIf="isTourist() && !tourPurchased" class="locked-keypoints-notice">
+        🔒 <strong>Prikazuje se samo prva ključna tačka.</strong>
+        Kupite turu da biste vidjeli sve ključne tačke i pokrenuli turu.
+      </div>
+
       <div id="tour-map" class="map"></div>
 
       <!-- Lista ključnih tačaka -->
@@ -98,6 +132,13 @@
   <button class="btn-edit" type="button" (click)="startEditKeyPoint(kp)">✏️</button>
   <button class="btn-delete" type="button" (click)="deleteKeyPoint(kp)">🗑</button>
 </div>
+        </div>
+      </div>
+
+      <!-- Prikaz zaključanih tačaka za nekupljene ture -->
+      <div *ngIf="isTourist() && !tourPurchased" class="locked-keypoints-placeholder">
+        <div class="kp-item locked">
+          🔒 <span>Ostale ključne tačke su skrivene — kupite turu da ih otkrijete</span>
         </div>
       </div>
 

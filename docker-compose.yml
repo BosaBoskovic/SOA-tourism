@@ -129,6 +129,7 @@ services:
     environment:
       MONGODB_URI: soa-mongodb-tours:27017  
       PORT: 8085
+      PAYMENTS_URL: http://soa-payments:8086
     depends_on:
       mongodb-tours:
         condition: service_healthy           
@@ -151,11 +152,49 @@ services:
       BLOG_URL: http://soa-blog:8082
       FOLLOWERS_URL: http://soa-followers:8084
       TOURS_URL: http://soa-tours:8085
+      PAYMENTS_URL: http://soa-payments:8086
     depends_on:
       - stakeholders
       - blog
       - followers
       - tours
+      - payments
+    networks:
+      - soa-network
+
+
+  postgres-payments:
+    image: postgres:16
+    container_name: soa-postgres-payments
+    environment:
+      POSTGRES_DB: paymentsdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_payments_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d paymentsdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soa-network
+
+  payments:
+    build:
+      context: ./services/payments
+      dockerfile: Dockerfile
+    container_name: soa-payments
+    ports:
+      - "8086:8086"
+    environment:
+      ASPNETCORE_URLS: http://+:8086
+      ConnectionStrings__DefaultConnection: "Host=soa-postgres-payments;Port=5432;Database=paymentsdb;Username=postgres;Password=postgres"
+    depends_on:
+      postgres-payments:
+        condition: service_healthy
     networks:
       - soa-network
 
@@ -164,6 +203,7 @@ volumes:
   neo4j_import:
   mongodb_blog_data:
   mongodb_tours_data:
+  postgres_payments_data:
 
 networks:
   soa-network:

@@ -68,3 +68,31 @@
   padding: 0.2rem 0.7rem;
   font-weight: 700;
 }
+
+.btn-cart {
+  background: linear-gradient(135deg, #f6d365, #fda085);
+  color: white;
+  border: none;
+}
+
+.btn-cart:hover {
+  box-shadow: 0 8px 20px rgba(253, 160, 133, 0.35);
+}
+
+.btn-in-cart {
+  background: #D1FAE5;
+  color: #065F46;
+  border: 1px solid #6EE7B7;
+  text-decoration: none;
+}
+
+.badge-purchased {
+  background: #D1FAE5;
+  color: #065F46;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+}
