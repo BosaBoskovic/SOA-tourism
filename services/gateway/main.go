@@ -20,6 +20,7 @@ import (
 	paymentsv1 "soa-tourism-proto/payments/v1"
 	stakeholdersv1 "soa-tourism-proto/stakeholders/v1"
 	toursv1 "soa-tourism-proto/tours/v1"
+	blogsv1 "soa-tourism-proto/blogs/v1"
 )
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -139,6 +140,7 @@ func main() {
 	toursURL := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
 	toursGRPCURL := getEnvOrDefault("TOURS_GRPC_URL", "localhost:9093")
 	paymentsGRPCURL := getEnvOrDefault("PAYMENTS_GRPC_URL", "localhost:9092")
+	blogsGRPCURL := getEnvOrDefault("BLOGS_GRPC_URL", "localhost:9095")
 
 	// --- Stakeholders gRPC konekcija (originalna) ---
 	grpcCtx, grpcCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -191,6 +193,20 @@ func main() {
 	}
 	defer paymentsGrpcConn.Close()
 	paymentsGrpcClient := paymentsv1.NewPaymentsServiceClient(paymentsGrpcConn)
+
+	// Blog gRPC konekcija
+	blogsGrpcConn, err := grpc.DialContext(
+        context.Background(),
+        blogsGRPCURL,
+        grpc.WithTransportCredentials(insecure.NewCredentials()),
+        grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
+    )
+    if err != nil {
+        log.Fatalf("neuspesno povezivanje sa blog gRPC servisom: %v", err)
+    }
+    defer blogsGrpcConn.Close()
+
+    blogsGrpcClient := blogsv1.NewBlogsServiceClient(blogsGrpcConn)
 
 	// --- Stakeholders servis ---
 	mux.HandleFunc("/stakeholders/login", func(w http.ResponseWriter, r *http.Request) {
@@ -324,14 +340,102 @@ func main() {
 	mux.HandleFunc("/profiles/", rewritePrefix("/profiles/", "/stakeholders/profile/", stakeholdersProxy))
 
 	// --- Blog servis ---
-	mux.Handle("/blog", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[GATEWAY] %s %s -> blog", r.Method, r.URL.Path)
-		blogProxy.ServeHTTP(w, r)
-	})))
-	mux.Handle("/blog/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[GATEWAY] %s %s -> blog", r.Method, r.URL.Path)
-		blogProxy.ServeHTTP(w, r)
-	})))
+	mux.HandleFunc("/blog", func(w http.ResponseWriter, r *http.Request) {
+        username := extractUsernameFromJWT(r.Header.Get("Authorization"))
+
+        if r.Method == http.MethodGet {
+            log.Printf("[GATEWAY] %s %s -> blog gRPC GetAllBlogs", r.Method, r.URL.Path)
+
+            ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+            defer cancel()
+
+            resp, err := blogsGrpcClient.GetAllBlogs(ctx, &blogsv1.GetAllBlogsRequest{
+                Username: username,
+            })
+            if err != nil {
+                writeJSON(w, http.StatusInternalServerError, map[string]any{
+                    "error": err.Error(),
+                })
+                return
+            }
+
+            blogs := make([]map[string]any, 0, len(resp.Blogs))
+            for _, b := range resp.Blogs {
+                blogs = append(blogs, map[string]any{
+                    "blog": map[string]any{
+                        "id":                  b.Id,
+                        "title":               b.Title,
+                        "descriptionMarkdown": b.DescriptionMarkdown,
+                        "descriptionHtml":     b.DescriptionHtml,
+                        "authorUsername":      b.AuthorUsername,
+                        "createdAt":           b.CreatedAt,
+                        "imageUrls":           b.ImageUrls,
+                    },
+                    "likesCount":          b.LikesCount,
+                    "likedByCurrentUser":  b.LikedByCurrentUser,
+                })
+            }
+
+            writeJSON(w, http.StatusOK, blogs)
+            return
+        }
+
+    if username != "" {
+        r.Header.Set("X-Username", username)
+    }
+
+        blogProxy.ServeHTTP(w, r)
+    })
+
+    mux.HandleFunc("/blog/", func(w http.ResponseWriter, r *http.Request) {
+        username := extractUsernameFromJWT(r.Header.Get("Authorization"))
+
+        if r.Method == http.MethodGet {
+            blogID := strings.TrimPrefix(r.URL.Path, "/blog/")
+            if blogID == "" {
+                writeJSON(w, http.StatusBadRequest, map[string]any{"error": "blog_id je obavezan"})
+                return
+            }
+
+            log.Printf("[GATEWAY] %s %s -> blog gRPC GetBlog id=%s", r.Method, r.URL.Path, blogID)
+
+            ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+            defer cancel()
+
+            resp, err := blogsGrpcClient.GetBlog(ctx, &blogsv1.GetBlogRequest{
+                BlogId:   blogID,
+                Username: username,
+            })
+            if err != nil {
+                writeJSON(w, http.StatusInternalServerError, map[string]any{
+                    "error": err.Error(),
+                })
+                return
+            }
+
+            b := resp.Blog
+            writeJSON(w, http.StatusOK, map[string]any{
+                "blog": map[string]any{
+                    "id":                  b.Id,
+                    "title":               b.Title,
+                    "descriptionMarkdown": b.DescriptionMarkdown,
+                    "descriptionHtml":     b.DescriptionHtml,
+                    "authorUsername":      b.AuthorUsername,
+                    "createdAt":           b.CreatedAt,
+                    "imageUrls":           b.ImageUrls,
+                },
+                "likesCount":          b.LikesCount,
+                "likedByCurrentUser":  b.LikedByCurrentUser,
+            })
+            return
+        }
+
+    if username != "" {
+        r.Header.Set("X-Username", username)
+    }
+
+        blogProxy.ServeHTTP(w, r)
+    })
 
 	// --- Followers servis ---
 	mux.Handle("/followers/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package blogs.v1;
+
+option java_multiple_files = true;
+option java_package = "blogs.v1";
+option java_outer_classname = "BlogsProto";
+
+option go_package = "soa-tourism-proto/blogs/v1;blogsv1";
+
+service BlogsService {
+  rpc GetBlog(GetBlogRequest) returns (GetBlogResponse);
+  rpc GetAllBlogs(GetAllBlogsRequest) returns (GetAllBlogsResponse);
+}
+
+message GetBlogRequest {
+  string blog_id = 1;
+  string username = 2;
+}
+
+message GetAllBlogsRequest {
+  string username = 1;
+}
+
+message Blog {
+  string id = 1;
+  string title = 2;
+  string description_markdown = 3;
+  string description_html = 4;
+  string author_username = 5;
+  string created_at = 6;
+  repeated string image_urls = 7;
+  int32 likes_count = 8;
+  bool liked_by_current_user = 9;
+}
+
+message GetBlogResponse {
+  Blog blog = 1;
+}
+
+message GetAllBlogsResponse {
+  repeated Blog blogs = 1;
+}
