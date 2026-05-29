@@ -99,13 +99,21 @@
         </span>
 
         <button
-          *ngIf="currentUser?.role === 'tourist' && !isPurchased(tour) && !isInCart(tour)"
+          *ngIf="currentUser?.role === 'tourist' && !isPurchased(tour) && !isInCart(tour) && tour.status !== 'archived'"
           type="button"
           class="btn btn-cart"
           (click)="addToCart(tour)"
         >
           🛒 Dodaj u korpu
         </button>
+
+        <!-- Prikaz poruke za arhivirane ture -->
+        <span
+          *ngIf="currentUser?.role === 'tourist' && !isPurchased(tour) && tour.status === 'archived'"
+          class="badge badge-archived"
+        >
+          🔒 Arhivirana
+        </span>
 
         <a
           *ngIf="currentUser?.role === 'tourist' && !isPurchased(tour) && isInCart(tour)"
