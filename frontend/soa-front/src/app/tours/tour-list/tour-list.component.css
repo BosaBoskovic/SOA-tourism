@@ -96,3 +96,10 @@
   display: inline-flex;
   align-items: center;
 }
+.badge-archived {
+  background: #e2e8f0;
+  color: #64748b;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}

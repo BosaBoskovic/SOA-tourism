@@ -29,6 +29,7 @@ export interface TourPreview {
   lengthKm: number;
   price: number;
   publishedAt?: string;
+  status?: string;
   firstKeyPoint?: KeyPoint;
 }
 

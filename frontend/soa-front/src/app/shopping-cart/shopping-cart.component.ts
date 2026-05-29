@@ -1,9 +1,13 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, SlicePipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { CartService, ShoppingCart, TourPurchaseToken } from '../services/cart.service';
+import { CartService, ShoppingCart, TourPurchaseToken, OrderItem } from '../services/cart.service';
 import { AuthService } from '../auth/services/auth.service';
 import { TopNavComponent } from '../shared/top-nav/top-nav.component';
+import { TourService } from '../services/tour.service'; 
+import { forkJoin, of } from 'rxjs';                     
+import { catchError } from 'rxjs/operators'; 
+
 
 @Component({
   selector: 'app-shopping-cart',
@@ -21,12 +25,14 @@ export class ShoppingCartComponent implements OnInit {
   error = '';
   successMessage = '';
   showTokens = false;
+  archivedTourIds: Set<string> = new Set();
 
   constructor(
     private cartService: CartService,
     private authService: AuthService,
     private cdr: ChangeDetectorRef,
-    private zone: NgZone
+    private zone: NgZone,
+    private tourService: TourService
   ) {}
 
   ngOnInit(): void {
@@ -46,6 +52,7 @@ export class ShoppingCartComponent implements OnInit {
       next: (cart) => {
         this.zone.run(() => {
           this.cart = cart;
+          this.checkForArchivedTours(cart);
           this.loading = false;
           this.cdr.detectChanges();
         });
@@ -58,6 +65,42 @@ export class ShoppingCartComponent implements OnInit {
         });
       }
     });
+  }
+
+  checkForArchivedTours(cart: ShoppingCart): void {
+    if (!cart.items?.length) {
+      this.zone.run(() => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      });
+      return;
+    }
+  
+    const checks$ = cart.items.map(item =>
+      this.tourService.getTourById(item.tourId).pipe(
+        catchError(() => of(null))
+      )
+    );
+  
+    forkJoin(checks$).subscribe(tours => {
+      this.zone.run(() => {
+        this.archivedTourIds = new Set(
+          tours
+            .filter(t => t?.status === 'archived')
+            .map(t => t!.id)
+        );
+        this.loading = false;
+        this.cdr.detectChanges();
+      });
+    });
+  }
+  
+  isArchived(item: OrderItem): boolean {
+    return this.archivedTourIds.has(item.tourId);
+  }
+  
+  get hasArchivedItems(): boolean {
+    return this.archivedTourIds.size > 0;
   }
 
   // Prima item.id (Guid) — ne tourId!

@@ -45,19 +45,22 @@
 
     <div *ngIf="itemCount > 0" class="cart-layout">
       <div class="cart-items">
-        <div *ngFor="let item of cart!.items; let i = index" class="cart-item">
+        <div *ngFor="let item of cart!.items; let i = index"
+            class="cart-item"
+            [class.cart-item-archived]="isArchived(item)">
           <div class="item-num">{{ i + 1 }}</div>
           <div class="item-info">
             <h3>{{ item.tourName }}</h3>
             <span class="item-id">ID: {{ item.tourId }}</span>
+            <!-- DODAJ OVO -->
+            <span *ngIf="isArchived(item)" class="badge-archived-item">
+              ⚠️ Tura je arhivirana — ne može se kupiti
+            </span>
           </div>
-          <span class="item-price">{{ item.price }} coins</span>
-          <button
-            type="button"
-            class="btn-remove"
-            (click)="removeItem(item.id)"
-            title="Ukloni iz korpe"
-          >✕</button>
+          <span class="item-price" [class.price-archived]="isArchived(item)">
+            {{ item.price }} coins
+          </span>
+          <button type="button" class="btn-remove" (click)="removeItem(item.id)" title="Ukloni iz korpe">✕</button>
         </div>
       </div>
 
@@ -73,13 +76,17 @@
           <strong class="total-price">{{ cart!.totalPrice }} coins</strong>
         </div>
 
+        <div *ngIf="hasArchivedItems" class="archived-warning">
+          ⚠️ Korpa sadrži arhivirane ture. Ukloni ih pre kupovine.
+        </div>
+
         <button
           type="button"
           class="btn btn-checkout"
-          [disabled]="checkoutLoading"
+          [disabled]="checkoutLoading || hasArchivedItems || loading"
           (click)="checkout()"
         >
-          {{ checkoutLoading ? '⏳ Obrada...' : '💳 Plati i kupi' }}
+          {{ checkoutLoading ? '⏳ Obrada...' : loading ? '⏳ Provjera...' : '💳 Plati i kupi' }}
         </button>
 
         <p class="secure-note">🔒 Sigurna kupovina</p>

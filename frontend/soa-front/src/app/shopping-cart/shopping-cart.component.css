@@ -147,3 +147,33 @@
   .token-card { flex-wrap: wrap; }
   .token-actions { flex-direction: row; width: 100%; }
 }
+
+.cart-item-archived {
+  opacity: 0.6;
+  border-left: 3px solid #f59e0b;
+}
+
+.badge-archived-item {
+  display: inline-block;
+  margin-top: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.price-archived {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.archived-warning {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
