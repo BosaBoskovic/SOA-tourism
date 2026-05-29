@@ -11,6 +11,7 @@ import (
 	"time"
 	"tours/handler"
 	"tours/repository"
+	"tours/rpc"
 	"tours/service"
 
 	"github.com/gorilla/mux"
@@ -107,13 +108,24 @@ func main() {
 	r.HandleFunc("/executions/{id}/complete", execHandler.Complete).Methods(http.MethodPut)
 	r.HandleFunc("/executions/{id}/abandon", execHandler.Abandon).Methods(http.MethodPut)
 
+	// Pokretanje gRPC servera u pozadini
+	grpcPort := os.Getenv("TOURS_GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "9093"
+	}
+	go func() {
+		if err := rpc.StartGRPCServer(grpcPort, tourService); err != nil {
+			log.Fatalf("neuspesno pokretanje gRPC servera: %v", err)
+		}
+	}()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8085"
 	}
 
 	fmt.Printf("Tour service running on port %s\n", port)
-
+	fmt.Printf("Tour gRPC server running on port %s\n", grpcPort)
 	go func() {
 		if err := http.ListenAndServe(":"+port, r); err != nil {
 			log.Fatal("Server error:", err)
