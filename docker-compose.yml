@@ -123,19 +123,21 @@ services:
 
   tours:
     build:
-      context: ./services/tours
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/tours/Dockerfile
     container_name: soa-tours
     ports:
       - "8085:8085"
+      - "9093:9093"
     environment:
-      MONGODB_URI: soa-mongodb-tours:27017  
+      MONGODB_URI: soa-mongodb-tours:27017
       PORT: 8085
+      TOURS_GRPC_PORT: 9093
       PAYMENTS_URL: http://soa-payments:8086
     depends_on:
       mongodb-tours:
-        condition: service_healthy     
-    restart: on-failure      
+        condition: service_healthy
+    restart: on-failure
     networks:
       - soa-network
 
@@ -155,6 +157,7 @@ services:
       BLOG_URL: http://soa-blog:8082
       FOLLOWERS_URL: http://soa-followers:8084
       TOURS_URL: http://soa-tours:8085
+      TOURS_GRPC_URL: soa-tours:9093
       PAYMENTS_URL: http://soa-payments:8086
       PAYMENTS_GRPC_URL: soa-payments:9092
     depends_on:

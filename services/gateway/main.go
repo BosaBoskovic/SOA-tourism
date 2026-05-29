@@ -19,6 +19,7 @@ import (
 
 	paymentsv1 "soa-tourism-proto/payments/v1"
 	stakeholdersv1 "soa-tourism-proto/stakeholders/v1"
+	toursv1 "soa-tourism-proto/tours/v1"
 )
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -136,8 +137,10 @@ func main() {
 	blogURL := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
 	followersURL := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
 	toursURL := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
+	toursGRPCURL := getEnvOrDefault("TOURS_GRPC_URL", "localhost:9093")
 	paymentsGRPCURL := getEnvOrDefault("PAYMENTS_GRPC_URL", "localhost:9092")
 
+	// --- Stakeholders gRPC konekcija (originalna) ---
 	grpcCtx, grpcCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer grpcCancel()
 	grpcConn, err := grpc.DialContext(
@@ -153,6 +156,19 @@ func main() {
 	defer grpcConn.Close()
 	stakeholdersGrpcClient := stakeholdersv1.NewStakeholdersServiceClient(grpcConn)
 
+	// --- Tours gRPC konekcija (novo) ---
+	toursGrpcConn, err := grpc.DialContext(
+		context.Background(),
+		toursGRPCURL,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
+	)
+	if err != nil {
+		log.Fatalf("neuspesno povezivanje sa tours gRPC servisom: %v", err)
+	}
+	defer toursGrpcConn.Close()
+	toursGrpcClient := toursv1.NewToursServiceClient(toursGrpcConn)
+
 	stakeholdersProxy := newReverseProxy(stakeholdersURL)
 	blogProxy := newReverseProxy(blogURL)
 	followersProxy := newReverseProxy(followersURL)
@@ -160,6 +176,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	// --- Payments gRPC konekcija (originalna) ---
 	paymentsGrpcCtx, paymentsGrpcCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer paymentsGrpcCancel()
 	paymentsGrpcConn, err := grpc.DialContext(
@@ -322,7 +339,109 @@ func main() {
 		followersProxy.ServeHTTP(w, r)
 	})))
 
-	// --- Tours servis ---
+	// --- Tours gRPC endpointi (novo) ---
+	// GET /tours/grpc/published  -> GetPublishedTours via gRPC
+	// GET /tours/grpc/{id}       -> GetTour via gRPC
+	mux.HandleFunc("/tours/grpc/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "Metod nije dozvoljen"})
+			return
+		}
+		path := strings.TrimPrefix(r.URL.Path, "/tours/grpc/")
+
+		if path == "published" {
+			log.Printf("[GATEWAY] %s %s -> tours gRPC GetPublishedTours", r.Method, r.URL.Path)
+			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+			defer cancel()
+			resp, err := toursGrpcClient.GetPublishedTours(ctx, &toursv1.GetPublishedToursRequest{})
+			if err != nil {
+				st, _ := status.FromError(err)
+				log.Printf("[GATEWAY] GetPublishedTours gRPC greska: %v", err)
+				switch st.Code() {
+				case codes.Unavailable:
+					writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "Tours servis nije dostupan"})
+				default:
+					writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri dohvatanju tura"})
+				}
+				return
+			}
+			tours := make([]map[string]any, 0, len(resp.Tours))
+			for _, t := range resp.Tours {
+				entry := map[string]any{
+					"id":          t.Id,
+					"authorId":    t.AuthorId,
+					"name":        t.Name,
+					"description": t.Description,
+					"difficulty":  t.Difficulty,
+					"tags":        t.Tags,
+					"lengthKm":    t.LengthKm,
+					"price":       t.Price,
+					"publishedAt": t.PublishedAt,
+				}
+				if t.FirstKeyPoint != nil {
+					entry["firstKeyPoint"] = map[string]any{
+						"id":        t.FirstKeyPoint.Id,
+						"name":      t.FirstKeyPoint.Name,
+						"latitude":  t.FirstKeyPoint.Latitude,
+						"longitude": t.FirstKeyPoint.Longitude,
+					}
+				}
+				tours = append(tours, entry)
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"tours": tours})
+			return
+		}
+
+		tourID := path
+		if tourID == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "tour_id je obavezan"})
+			return
+		}
+		log.Printf("[GATEWAY] %s %s -> tours gRPC GetTour id=%s", r.Method, r.URL.Path, tourID)
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		resp, err := toursGrpcClient.GetTour(ctx, &toursv1.GetTourRequest{TourId: tourID})
+		if err != nil {
+			st, _ := status.FromError(err)
+			log.Printf("[GATEWAY] GetTour gRPC greska: %v", err)
+			switch st.Code() {
+			case codes.NotFound:
+				writeJSON(w, http.StatusNotFound, map[string]any{"error": "Tura nije pronadjena"})
+			case codes.InvalidArgument:
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Neispravan tour_id"})
+			case codes.Unavailable:
+				writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "Tours servis nije dostupan"})
+			default:
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri dohvatanju ture"})
+			}
+			return
+		}
+		t := resp.Tour
+		durations := make([]map[string]any, 0, len(t.Durations))
+		for _, d := range t.Durations {
+			durations = append(durations, map[string]any{
+				"transport": d.Transport,
+				"minutes":   d.Minutes,
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"id":          t.Id,
+			"authorId":    t.AuthorId,
+			"name":        t.Name,
+			"description": t.Description,
+			"difficulty":  t.Difficulty,
+			"tags":        t.Tags,
+			"status":      t.Status,
+			"lengthKm":    t.LengthKm,
+			"durations":   durations,
+			"price":       t.Price,
+			"createdAt":   t.CreatedAt,
+			"updatedAt":   t.UpdatedAt,
+			"publishedAt": t.PublishedAt,
+		})
+	})
+
+	// --- Tours servis (HTTP proxy, originalno) ---
 	mux.Handle("/tours", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
 		toursProxy.ServeHTTP(w, r)
@@ -448,6 +567,7 @@ func main() {
 	log.Printf("  /blog/*         -> %s", blogURL)
 	log.Printf("  /followers/*    -> %s", followersURL)
 	log.Printf("  /tours/*        -> %s", toursURL)
+	log.Printf("  /tours/grpc/*   -> %s (gRPC)", toursGRPCURL)
 
 	if err := http.ListenAndServe(":"+port, corsMiddleware(mux)); err != nil {
 		log.Fatalf("Gateway nije mogao da se pokrene: %v", err)

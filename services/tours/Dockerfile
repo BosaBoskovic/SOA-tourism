@@ -3,10 +3,11 @@ FROM golang:1.26-alpine AS builder
 
 WORKDIR /build
 
-COPY go.mod go.sum ./
+COPY services/tours/go.mod services/tours/go.sum ./
+COPY proto/gen/go /proto/gen/go
 RUN go mod download
 
-COPY . .
+COPY services/tours .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o tours .
 
