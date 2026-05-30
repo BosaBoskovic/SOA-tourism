@@ -18,6 +18,7 @@ type TourExecutionService struct {
 	tourRepo     *repository.TourRepository
 	keyPointRepo *repository.KeyPointRepository
 	purchaseRepo *repository.PurchaseRepository
+	positionRepo *repository.TouristPositionRepository
 }
 
 func NewTourExecutionService(
@@ -25,12 +26,14 @@ func NewTourExecutionService(
 	tourRepo *repository.TourRepository,
 	keyPointRepo *repository.KeyPointRepository,
 	purchaseRepo *repository.PurchaseRepository,
+	positionRepo *repository.TouristPositionRepository,
 ) *TourExecutionService {
 	return &TourExecutionService{
 		execRepo:     execRepo,
 		tourRepo:     tourRepo,
 		keyPointRepo: keyPointRepo,
 		purchaseRepo: purchaseRepo,
+		positionRepo: positionRepo,
 	}
 }
 
@@ -65,6 +68,11 @@ func (s *TourExecutionService) Start(req *model.StartExecutionRequest) (*model.T
 		return nil, errors.New("tourist has not purchased this tour")
 	}
 
+position, err := s.positionRepo.FindByTouristID(req.TouristID)
+if err != nil {
+    return nil, errors.New("tourist position not found, cannot start tour")
+}
+
 	now := time.Now()
 	exec := &model.TourExecution{
 		ID:        bson.NewObjectID(),
@@ -72,9 +80,9 @@ func (s *TourExecutionService) Start(req *model.StartExecutionRequest) (*model.T
 		TourID:    tourOID,
 		Status:    model.ExecutionActive,
 		StartLocation: model.GeoPoint{
-			Latitude:  req.Latitude,
-			Longitude: req.Longitude,
-		},
+            Latitude:  position.Latitude,
+            Longitude: position.Longitude,
+        },
 		CompletedKeyPoints: []model.CompletedKeyPoint{},
 		StartedAt:          now,
 		LastActivityAt:     now,
