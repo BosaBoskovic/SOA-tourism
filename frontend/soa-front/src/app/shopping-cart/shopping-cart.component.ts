@@ -150,7 +150,20 @@ export class ShoppingCartComponent implements OnInit {
       },
       error: (err) => {
         this.zone.run(() => {
-          this.error = err.error?.error || 'Greška pri kupovini.';
+         const rawError =
+  err.error?.error ||
+  err.error?.message ||
+  err.error?.detail ||
+  err.message ||
+  '';
+
+if (rawError.includes('soa-tours') || rawError.includes('Name or service not known')) {
+  this.error = 'Tura trenutno nije dostupna za kupovinu. Pokušajte kasnije.';
+} else if (rawError.includes('not available') || rawError.includes('nije dostupna')) {
+  this.error = 'Tura više nije dostupna za kupovinu.';
+} else {
+  this.error = 'Kupovina nije uspela. Sistem je poništio započetu transakciju.';
+}
           this.checkoutLoading = false;
           this.cdr.detectChanges();
         });

@@ -203,6 +203,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8086;http://+:9092
       PAYMENTS_GRPC_PORT: 9092
+      TOURS_URL: http://soa-tours:8085
       ConnectionStrings__DefaultConnection: "Host=soa-postgres-payments;Port=5432;Database=paymentsdb;Username=postgres;Password=postgres"
     depends_on:
       postgres-payments:

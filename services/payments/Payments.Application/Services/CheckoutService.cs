@@ -1,4 +1,5 @@
-﻿using Payments.Domain.Entities;
+﻿using Payments.Application.Clients;
+using Payments.Domain.Entities;
 using Payments.Infrastructure.Repositories;
 
 namespace Payments.Application.Services;
@@ -7,11 +8,16 @@ public class CheckoutService
 {
     private readonly ShoppingCartRepository _cartRepo;
     private readonly TourPurchaseTokenRepository _tokenRepo;
+    private readonly TourClient _tourClient;
 
-    public CheckoutService(ShoppingCartRepository cartRepo, TourPurchaseTokenRepository tokenRepo)
+    public CheckoutService(
+        ShoppingCartRepository cartRepo,
+        TourPurchaseTokenRepository tokenRepo,
+        TourClient tourClient)
     {
         _cartRepo = cartRepo;
         _tokenRepo = tokenRepo;
+        _tourClient = tourClient;
     }
 
     public async Task<List<TourPurchaseToken>> CheckoutAsync(string touristId)
@@ -21,7 +27,14 @@ public class CheckoutService
         if (cart == null || cart.Items.Count == 0)
             throw new InvalidOperationException("Korpa je prazna.");
 
-        // Generiši token za svaku stavku
+        foreach (var item in cart.Items)
+        {
+            var canBuy = await _tourClient.IsTourPurchasableAsync(item.TourId);
+
+            if (!canBuy)
+                throw new InvalidOperationException($"Tura '{item.TourName}' nije dostupna za kupovinu.");
+        }
+
         var tokens = cart.Items.Select(item => new TourPurchaseToken
         {
             TouristId = touristId,
@@ -31,10 +44,18 @@ public class CheckoutService
             PurchasedAt = DateTime.UtcNow
         }).ToList();
 
-        await _tokenRepo.AddRangeAsync(tokens);
-        await _cartRepo.ClearAsync(cart);
+        try
+        {
+            await _tokenRepo.AddRangeAsync(tokens);
+            await _cartRepo.ClearAsync(cart);
 
-        return tokens;
+            return tokens;
+        }
+        catch
+        {
+            await _tokenRepo.DeleteRangeAsync(tokens);
+            throw;
+        }
     }
 
     public async Task<List<TourPurchaseToken>> GetPurchasedToursAsync(string touristId)

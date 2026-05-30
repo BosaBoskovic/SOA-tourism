@@ -32,4 +32,10 @@ public class TourPurchaseTokenRepository
         return await _db.TourPurchaseTokens
             .AnyAsync(t => t.TouristId == touristId && t.TourId == tourId);
     }
+
+    public async Task DeleteRangeAsync(IEnumerable<TourPurchaseToken> tokens)
+    {
+        _db.TourPurchaseTokens.RemoveRange(tokens);
+        await _db.SaveChangesAsync();
+    }
 }
