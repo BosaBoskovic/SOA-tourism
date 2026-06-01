@@ -74,6 +74,7 @@ services:
     container_name: soa-blog
     ports:
       - "8082:8082"
+      - "9095:9095"
     environment:
       MONGODB_URI: mongodb://soa-mongodb-blog:27017/blogdb
       MONGODB_DATABASE: blogdb
@@ -160,6 +161,7 @@ services:
       TOURS_GRPC_URL: soa-tours:9093
       PAYMENTS_URL: http://soa-payments:8086
       PAYMENTS_GRPC_URL: soa-payments:9092
+      BLOGS_GRPC_URL: soa-blog:9095
     depends_on:
       - stakeholders
       - blog
@@ -201,6 +203,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8086;http://+:9092
       PAYMENTS_GRPC_PORT: 9092
+      TOURS_URL: http://soa-tours:8085
       ConnectionStrings__DefaultConnection: "Host=soa-postgres-payments;Port=5432;Database=paymentsdb;Username=postgres;Password=postgres"
     depends_on:
       postgres-payments:

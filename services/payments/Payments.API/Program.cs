@@ -3,6 +3,7 @@ using Payments.API.Grpc;
 using Payments.Application.Services;
 using Payments.Infrastructure.Data;
 using Payments.Infrastructure.Repositories;
+using Payments.Application.Clients;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,15 @@ builder.Services.AddScoped<ShoppingCartRepository>();
 builder.Services.AddScoped<TourPurchaseTokenRepository>();
 builder.Services.AddScoped<ShoppingCartService>();
 builder.Services.AddScoped<CheckoutService>();
+
+builder.Services.AddHttpClient<TourClient>(client =>
+{
+    var toursUrl = builder.Configuration["TOURS_URL"]
+                   ?? Environment.GetEnvironmentVariable("TOURS_URL")
+                   ?? "http://localhost:8085";
+
+    client.BaseAddress = new Uri(toursUrl);
+});
 
 builder.WebHost.ConfigureKestrel(options =>
 {

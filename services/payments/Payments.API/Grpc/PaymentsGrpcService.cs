@@ -37,7 +37,13 @@ public class PaymentsGrpcService : PaymentsService.PaymentsServiceBase
         }
         catch (InvalidOperationException ex)
         {
-            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
+            throw new RpcException(
+                new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+        catch (Exception ex)
+        {
+            throw new RpcException(
+                new Status(StatusCode.Internal, ex.Message));
         }
     }
 
