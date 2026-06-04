@@ -58,6 +58,15 @@ export class ExecutionService {
     return this.http.post<TourExecution>(`${this.apiUrl}/executions`, req);
   }
 
+  // PUT /tourist-position
+updateTouristPosition(req: {
+  touristId: string;
+  latitude: number;
+  longitude: number;
+}): Observable<any> {
+  return this.http.put<any>(`${this.apiUrl}/tourist-position`, req);
+}
+
   // GET /executions/{id}
   getById(id: string): Observable<TourExecution> {
     return this.http.get<TourExecution>(`${this.apiUrl}/executions/${id}`);

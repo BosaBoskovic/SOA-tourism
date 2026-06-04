@@ -29,12 +29,7 @@ public class TourClient
            return false;
        }
 
-        if (!response.IsSuccessStatusCode)
-            return false;
 
-        var tour = await response.Content.ReadFromJsonAsync<TourResponse>();
-
-        return tour != null && tour.Status == "published";
     }
 }
 
