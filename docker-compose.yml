@@ -135,9 +135,12 @@ services:
       PORT: 8085
       TOURS_GRPC_PORT: 9093
       PAYMENTS_URL: http://soa-payments:8086
+      RABBITMQ_HOST: rabbitmq
     depends_on:
       mongodb-tours:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     restart: on-failure
     networks:
       - soa-network
@@ -204,11 +207,26 @@ services:
       ASPNETCORE_URLS: http://+:8086;http://+:9092
       PAYMENTS_GRPC_PORT: 9092
       TOURS_URL: http://soa-tours:8085
+      RABBITMQ_HOST: rabbitmq
       ConnectionStrings__DefaultConnection: "Host=soa-postgres-payments;Port=5432;Database=paymentsdb;Username=postgres;Password=postgres"
     depends_on:
       postgres-payments:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     restart: on-failure
+    networks:
+      - soa-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: soa-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     networks:
       - soa-network
 

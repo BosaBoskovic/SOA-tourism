@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 	"tours/handler"
+	"tours/messaging"
 	"tours/repository"
 	"tours/rpc"
 	"tours/service"
@@ -56,6 +57,11 @@ func main() {
 	touristPositionRepo := repository.NewTouristPositionRepository(db)
 	execRepo := repository.NewTourExecutionRepository(db)
 	purchaseRepo := repository.NewPurchaseRepository()
+
+	// RabbitMQ consumers
+    messaging.StartCheckoutConsumer(tourRepo)
+
+    messaging.StartPurchaseCompletedConsumer(purchaseRepo)
 
 	// Services
 	tourService := service.NewTourService(tourRepo, keyPointRepo, purchaseRepo)

@@ -4,6 +4,8 @@ using Payments.Application.Services;
 using Payments.Infrastructure.Data;
 using Payments.Infrastructure.Repositories;
 using Payments.Application.Clients;
+using Payments.Infrastructure.Messaging;
+using Payments.API.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +22,10 @@ builder.Services.AddScoped<ShoppingCartRepository>();
 builder.Services.AddScoped<TourPurchaseTokenRepository>();
 builder.Services.AddScoped<ShoppingCartService>();
 builder.Services.AddScoped<CheckoutService>();
+
+builder.Services.AddSingleton<RabbitMqPublisher>();
+
+builder.Services.AddHostedService<RabbitMqCheckoutConsumer>();
 
 builder.Services.AddHttpClient<TourClient>(client =>
 {
