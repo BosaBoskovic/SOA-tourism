@@ -62,7 +62,7 @@ func main() {
 	keyPointService := service.NewKeyPointService(keyPointRepo, tourRepo)
 	reviewService := service.NewReviewService(reviewRepo, tourRepo)
 	touristPositionService := service.NewTouristPositionService(touristPositionRepo)
-	execService := service.NewTourExecutionService(execRepo, tourRepo, keyPointRepo, purchaseRepo)
+	execService := service.NewTourExecutionService(execRepo, tourRepo, keyPointRepo, purchaseRepo, touristPositionRepo,)
 
 	// Handlers
 	tourHandler := handler.NewTourHandler(tourService)

@@ -223,23 +223,38 @@ import {
         longitude: position.longitude
       };
   
-      this.executionService.start(req).subscribe({
-        next: (exec) => {
-          this.zone.run(() => {
-            this.execution = exec;
-            this.loading = false;
-            this.loadKeyPoints();
-            this.cdr.detectChanges();
-          });
-        },
-        error: (err) => {
-          this.zone.run(() => {
-            this.error = err.error?.error || 'Greška pri pokretanju ture.';
-            this.loading = false;
-            this.cdr.detectChanges();
-          });
-        }
-      });
+      this.executionService.updateTouristPosition({
+  touristId: this.currentUser.username,
+  latitude: position.latitude,
+  longitude: position.longitude
+}).subscribe({
+  next: () => {
+    this.executionService.start(req).subscribe({
+      next: (exec) => {
+        this.zone.run(() => {
+          this.execution = exec;
+          this.loading = false;
+          this.loadKeyPoints();
+          this.cdr.detectChanges();
+        });
+      },
+      error: (err) => {
+        this.zone.run(() => {
+          this.error = err.error?.error || 'Greška pri pokretanju ture.';
+          this.loading = false;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  },
+  error: (err) => {
+    this.zone.run(() => {
+      this.error = err.error?.error || 'Greška pri čuvanju pozicije.';
+      this.loading = false;
+      this.cdr.detectChanges();
+    });
+  }
+});
     }
   
     private loadKeyPoints(): void {
