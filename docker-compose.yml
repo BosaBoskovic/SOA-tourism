@@ -136,6 +136,8 @@ services:
       TOURS_GRPC_PORT: 9093
       PAYMENTS_URL: http://soa-payments:8086
       RABBITMQ_HOST: rabbitmq
+      OTEL_SERVICE_NAME: tours-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
       mongodb-tours:
         condition: service_healthy
@@ -227,6 +229,18 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - soa-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: soa-jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
     networks:
       - soa-network
 

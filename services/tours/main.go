@@ -18,9 +18,68 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
-)
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+    "go.opentelemetry.io/otel/sdk/resource"
+     sdktrace "go.opentelemetry.io/otel/sdk/trace"
+     semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+    )
+
+
+func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "tours-service"
+	}
+
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "http://localhost:4318"
+	}
+
+	exporter, err := otlptracehttp.New(ctx,
+		otlptracehttp.WithEndpointURL(endpoint+"/v1/traces"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			semconv.ServiceName(serviceName),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+
+	otel.SetTracerProvider(tp)
+
+	return tp, nil
+}
 
 func main() {
+
+
+   	ctx := context.Background()
+
+   	tp, err := initTracer(ctx)
+   	if err != nil {
+   		log.Fatal("OpenTelemetry init error:", err)
+   	}
+   	defer func() {
+   		if err := tp.Shutdown(ctx); err != nil {
+   			log.Println("OpenTelemetry shutdown error:", err)
+   		}
+   	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -78,6 +137,7 @@ func main() {
 	execHandler := handler.NewTourExecutionHandler(execService)
 
 	r := mux.NewRouter()
+    r.Use(otelmux.Middleware("tours-service"))
 
 	// Tours
 	r.HandleFunc("/tours", tourHandler.Create).Methods(http.MethodPost)
