@@ -1,0 +1,142 @@
+{
+  "id": null,
+  "uid": "loki-logs",
+  "title": "Agregacija Logova (Loki)",
+  "description": "Logovi svih mikroservisa sakupljeni kroz Promtail → Loki",
+  "tags": ["logs", "loki", "promtail", "soa-tourism"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 2,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Volume logova po kontejneru",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "sum(rate({job=\"docker\"}[5m])) by (filename)",
+          "legendFormat": "{{filename}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "lineWidth": 1, "fillOpacity": 5 } }
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+      }
+    },
+    {
+      "id": 2,
+      "title": "ERROR / WARN logovi — svih servisa",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "{job=\"docker\"} |~ \"(?i)(error|warn|exception|fatal)\"",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 3,
+      "title": "Logovi — Gateway (soa-gateway)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "{job=\"docker\",filename=\"/var/lib/docker/containers/07d0dd3c72fd13915e0200a3431c6b507fd1767a384d52c8ccfee19971f5e793/07d0dd3c72fd13915e0200a3431c6b507fd1767a384d52c8ccfee19971f5e793-json.log\"}",
+          "refId": "A"
+        }
+      ],
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    },
+    {
+      "id": 4,
+      "title": "Logovi — Stakeholders (soa-stakeholders)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "{job=\"docker\",filename=\"/var/lib/docker/containers/139113ec8e8925511f386b4e1dd577a27985d4887564311046567bc21dc78246/139113ec8e8925511f386b4e1dd577a27985d4887564311046567bc21dc78246-json.log\"}",
+          "refId": "A"
+        }
+      ],
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    },
+    {
+      "id": 5,
+      "title": "Logovi — Tours (soa-tours)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "{job=\"docker\",filename=\"/var/lib/docker/containers/04585d56064018be7d1676e55e0f34c31c7ecf260a2bcaa7035ffa387638c6b5/04585d56064018be7d1676e55e0f34c31c7ecf260a2bcaa7035ffa387638c6b5-json.log\"}",
+          "refId": "A"
+        }
+      ],
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    },
+    {
+      "id": 6,
+      "title": "Logovi — Blog (soa-blog)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "{job=\"docker\",filename=\"/var/lib/docker/containers/34d69df8f7949a6554912194e6a5f35b7f905b8c52cb325d069138bffcc91405/34d69df8f7949a6554912194e6a5f35b7f905b8c52cb325d069138bffcc91405-json.log\"}",
+          "refId": "A"
+        }
+      ],
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    },
+    {
+      "id": 7,
+      "title": "Logovi — Payments (soa-payments)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "{job=\"docker\",filename=~\"/var/lib/docker/containers/c28b8876023a.*/.*-json.log\"}",
+          "refId": "A"
+        }
+      ],
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    },
+    {
+      "id": 8,
+      "title": "Logovi — Followers (soa-followers)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "{job=\"docker\",filename=~\"/var/lib/docker/containers/88a4c379d125.*/.*-json.log\"}",
+          "refId": "A"
+        }
+      ],
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    }
+  ],
+  "templating": { "list": [] }
+}

@@ -267,12 +267,25 @@ services:
       environment:
         GF_SECURITY_ADMIN_USER: admin
         GF_SECURITY_ADMIN_PASSWORD: admin
+        # Provisioning putanje
+        GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+        # Omogući alerting
+        GF_ALERTING_ENABLED: "true"
+        GF_UNIFIED_ALERTING_ENABLED: "true"
+        # Jaeger plugin (tracing)
+        #GF_INSTALL_PLUGINS: grafana-jaeger-datasource
       volumes:
         - grafana_data:/var/lib/grafana
+        # Datasources provisioning (Prometheus + Loki + Jaeger)
         - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+        # Dashboards provisioning config
+        - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+        # Alerting rules provisioning
+        - ./monitoring/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting
       depends_on:
         - prometheus
         - loki
+        - jaeger
       networks:
         - soa-network
 
