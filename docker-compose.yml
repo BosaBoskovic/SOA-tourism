@@ -255,8 +255,36 @@ services:
         GF_SECURITY_ADMIN_PASSWORD: admin
       volumes:
         - grafana_data:/var/lib/grafana
+        - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       depends_on:
         - prometheus
+        - loki
+      networks:
+        - soa-network
+
+  loki:
+      image: grafana/loki:latest
+      container_name: soa-loki
+      ports:
+        - "3100:3100"
+      command: -config.file=/etc/loki/loki-config.yml
+      volumes:
+        - ./monitoring/loki-config.yml:/etc/loki/loki-config.yml
+        - loki_data:/loki
+      networks:
+        - soa-network
+
+  promtail:
+      image: grafana/promtail:latest
+      container_name: soa-promtail
+      command: -config.file=/etc/promtail/promtail-config.yml
+      volumes:
+        - ./monitoring/promtail-config.yml:/etc/promtail/promtail-config.yml
+        - /var/lib/docker/containers:/var/lib/docker/containers:ro
+        - /var/log:/var/log:ro
+        - promtail_positions:/tmp
+      depends_on:
+        - loki
       networks:
         - soa-network
 
@@ -301,6 +329,8 @@ volumes:
   postgres_payments_data:
   prometheus_data:
   grafana_data:
+  loki_data:
+  promtail_positions:
 
 networks:
   soa-network:
