@@ -273,6 +273,7 @@ services:
       depends_on:
         - prometheus
         - loki
+        - jaeger
       networks:
         - soa-network
 
