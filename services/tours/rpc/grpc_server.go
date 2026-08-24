@@ -7,6 +7,7 @@ import (
 	"time"
 	"tours/service"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -119,7 +120,7 @@ func StartGRPCServer(port string, tourService *service.TourService) error {
 		return err
 	}
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	toursv1.RegisterToursServiceServer(server, NewToursGrpcServer(tourService))
 
 	log.Printf("Tours gRPC server pokrenut na portu %s", port)

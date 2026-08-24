@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -102,7 +103,7 @@ func StartGRPCServer(port string, authSvc *service.AuthService, profileSvc *serv
 		return err
 	}
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	stakeholdersv1.RegisterStakeholdersServiceServer(server, NewStakeholdersGrpcServer(authSvc, profileSvc))
 
 	log.Printf("Stakeholders gRPC server pokrenut na portu %s", port)

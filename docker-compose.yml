@@ -33,9 +33,17 @@ services:
       NEO4J_PASSWORD: password
       NEO4J_DATABASE: neo4j
       JWT_SECRET: super-secret-change-me-123456
+      OTEL_SERVICE_NAME: stakeholders-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
       neo4j:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8081/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - soa-network
 
@@ -79,11 +87,19 @@ services:
       MONGODB_URI: mongodb://soa-mongodb-blog:27017/blogdb
       MONGODB_DATABASE: blogdb
       FOLLOWER_SERVICE_URL: http://soa-followers:8084
+      OTEL_SERVICE_NAME: blog-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
       followers:
-        condition: service_started
+        condition: service_healthy
       mongodb-blog:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8082/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     networks:
       - soa-network
 
@@ -100,9 +116,17 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password
       NEO4J_DATABASE: neo4j
+      OTEL_SERVICE_NAME: followers-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
       neo4j:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8084/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - soa-network
 
@@ -142,8 +166,36 @@ services:
       mongodb-tours:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8085/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - soa-network
+
+  # ENCOUNTERS - stub servis, ukljucen radi konzistentnog monitoringa
+  # (nema jos poslovnu logiku niti rutu na gateway-u)
+  encounters:
+    build:
+      context: .
+      dockerfile: services/encounters/Dockerfile
+    container_name: soa-encounters
+    ports:
+      - "8087:8083" # host 8083 je vec zauzet od strane mongo-express
+    environment:
+      OTEL_SERVICE_NAME: encounters-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8083/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - soa-network
 
@@ -167,13 +219,26 @@ services:
       PAYMENTS_URL: http://soa-payments:8086
       PAYMENTS_GRPC_URL: soa-payments:9092
       BLOGS_GRPC_URL: soa-blog:9095
+      OTEL_SERVICE_NAME: gateway
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
-      - stakeholders
-      - blog
-      - followers
-      - tours
-      - payments
+      stakeholders:
+        condition: service_healthy
+      blog:
+        condition: service_healthy
+      followers:
+        condition: service_healthy
+      tours:
+        condition: service_healthy
+      payments:
+        condition: service_healthy
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - soa-network
 
@@ -211,12 +276,20 @@ services:
       TOURS_URL: http://soa-tours:8085
       RABBITMQ_HOST: rabbitmq
       ConnectionStrings__DefaultConnection: "Host=soa-postgres-payments;Port=5432;Database=paymentsdb;Username=postgres;Password=postgres"
+      OTEL_SERVICE_NAME: payments-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
       postgres-payments:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8086/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - soa-network
 
@@ -226,9 +299,18 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+      - "15692:15692" # rabbitmq_prometheus plugin, scraped u prometheus.yml
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - ./monitoring/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
     networks:
       - soa-network
 
@@ -308,6 +390,7 @@ services:
       volumes:
         - ./monitoring/promtail-config.yml:/etc/promtail/promtail-config.yml
         - /var/lib/docker/containers:/var/lib/docker/containers:ro
+        - /var/run/docker.sock:/var/run/docker.sock:ro
         - /var/log:/var/log:ro
         - promtail_positions:/tmp
       depends_on:

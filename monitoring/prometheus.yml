@@ -14,3 +14,27 @@ scrape_configs:
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']
+
+  - job_name: 'rabbitmq'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['rabbitmq:15692']
+
+  # --- Application services (RED metrics: rate, errors, duration) ---
+  - job_name: 'services'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['gateway:8080']
+        labels: { service: gateway }
+      - targets: ['stakeholders:8081']
+        labels: { service: stakeholders }
+      - targets: ['blog:8082']
+        labels: { service: blog }
+      - targets: ['encounters:8083']
+        labels: { service: encounters }
+      - targets: ['followers:8084']
+        labels: { service: followers }
+      - targets: ['tours:8085']
+        labels: { service: tours }
+      - targets: ['payments:8086']
+        labels: { service: payments }

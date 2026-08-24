@@ -1,45 +1,36 @@
 # Builder stage: kompajlira Go aplikaciju
 FROM golang:1.26-alpine AS builder
 
-WORKDIR /build
-
-# Kopiraj shared proto modul
-COPY proto/gen/go ./proto/gen/go
+WORKDIR /build/services/encounters
 
 # Kopiraj go.mod i go.sum
-COPY services/gateway/go.mod services/gateway/go.sum ./services/gateway/
-
-WORKDIR /build/services/gateway
+COPY services/encounters/go.mod services/encounters/go.sum ./
 
 # Preuzmi zavisnosti
 RUN go mod download
 
 # Kopiraj izvorni kod
-COPY services/gateway .
+COPY services/encounters .
 
 # Sinhronizuj go.mod/go.sum sa stvarnim importima (dodaje observability zavisnosti)
 RUN go mod tidy
 
 # Kompajliraj aplikaciju
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o gateway .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o encounters .
 
 # Runtime stage: minimalni kontejner sa samo binarnom datotekom
 FROM alpine:latest
 
-# Instaliraj ca-certificates za HTTPS konektivnost
 RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 
-# Kopiraj kompajlirani binar iz builder stage-a
-COPY --from=builder /build/services/gateway/gateway .
+COPY --from=builder /build/services/encounters/encounters .
 
-# Izloži port koji koristi gateway
-EXPOSE 8080
+EXPOSE 8083
 
 # Docker healthcheck oslanja se na /health endpoint (vidi observability.go)
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=5 \
-    CMD wget -q -O- http://localhost:8080/health || exit 1
+    CMD wget -q -O- http://localhost:8083/health || exit 1
 
-# Pokreni aplikaciju
-ENTRYPOINT ["./gateway"]
+ENTRYPOINT ["./encounters"]

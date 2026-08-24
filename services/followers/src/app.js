@@ -2,18 +2,24 @@ const express = require("express");
 const config = require("./config");
 const followerRoutes = require("./routes/followerRoutes");
 const { verifyConnection, ensureConstraints, driver } = require("./db");
+const { logger, requestLogger, metricsMiddleware, metricsHandler, healthHandler } = require("./observability");
 
 const app = express();
+app.use(requestLogger);
+app.use(metricsMiddleware);
 app.use(express.json());
 
 app.get("/followers", (_req, res) => {
   res.json({ message: "Followers service radi" });
 });
 
+app.get("/health", healthHandler(driver));
+app.get("/metrics", metricsHandler);
+
 app.use("/followers", followerRoutes);
 
-app.use((err, _req, res, _next) => {
-  console.error(err);
+app.use((err, req, res, _next) => {
+  req.log ? req.log.error({ error: err.message }, "unhandled error") : logger.error({ error: err.message }, "unhandled error");
   res.status(500).json({ error: "Neocekivana greska" });
 });
 
@@ -22,12 +28,12 @@ async function bootstrap() {
   await ensureConstraints();
 
   app.listen(config.port, () => {
-    console.log(`Followers service running on port ${config.port}`);
+    logger.info({ port: config.port }, "followers service starting");
   });
 }
 
 bootstrap().catch(async (error) => {
-  console.error("Neuspelo pokretanje followers servisa", error);
+  logger.error({ error: error.message }, "neuspelo pokretanje followers servisa");
   await driver.close();
   process.exit(1);
 });

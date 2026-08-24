@@ -14,8 +14,12 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	paymentsv1 "soa-tourism-proto/payments/v1"
 	stakeholdersv1 "soa-tourism-proto/stakeholders/v1"
@@ -51,7 +55,12 @@ func newReverseProxy(targetURL string) *httputil.ReverseProxy {
 	if err != nil {
 		log.Fatalf("Neispravna URL adresa za servis: %s, greška: %v", targetURL, err)
 	}
-	return httputil.NewSingleHostReverseProxy(target)
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	// Propagate the trace context (and create a client span) on every proxied
+	// request, so the downstream service's own tracing middleware continues
+	// the same trace instead of starting a new one.
+	proxy.Transport = otelhttp.NewTransport(http.DefaultTransport)
+	return proxy
 }
 
 func rewritePrefix(prefix, replacement string, next http.Handler) http.HandlerFunc {
@@ -133,6 +142,20 @@ func withUsername(next http.Handler) http.Handler {
 }
 
 func main() {
+	logger := newLogger()
+
+	ctx := context.Background()
+	tp, err := initTracer(ctx)
+	if err != nil {
+		logger.Error("opentelemetry init failed", "error", err)
+		log.Fatal(err)
+	}
+	defer func() {
+		if err := tp.Shutdown(ctx); err != nil {
+			logger.Error("opentelemetry shutdown failed", "error", err)
+		}
+	}()
+
 	stakeholdersURL := getEnvOrDefault("STAKEHOLDERS_URL", "http://localhost:8081")
 	stakeholdersGRPCURL := getEnvOrDefault("STAKEHOLDERS_GRPC_URL", "localhost:9091")
 	blogURL := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
@@ -150,6 +173,7 @@ func main() {
 		stakeholdersGRPCURL,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
 	)
 	if err != nil {
@@ -163,6 +187,7 @@ func main() {
 		context.Background(),
 		toursGRPCURL,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
 	)
 	if err != nil {
@@ -186,6 +211,7 @@ func main() {
 		paymentsGRPCURL,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
 	)
 	if err != nil {
@@ -199,6 +225,7 @@ func main() {
         context.Background(),
         blogsGRPCURL,
         grpc.WithTransportCredentials(insecure.NewCredentials()),
+        grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
         grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
     )
     if err != nil {
@@ -665,15 +692,25 @@ func main() {
 		http.Error(w, `{"error": "Ruta nije pronađena"}`, http.StatusNotFound)
 	})
 
-	port := getEnvOrDefault("PORT", "8080")
-	log.Printf("API Gateway pokrenut na portu %s", port)
-	log.Printf("  /stakeholders/* -> %s", stakeholdersURL)
-	log.Printf("  /blog/*         -> %s", blogURL)
-	log.Printf("  /followers/*    -> %s", followersURL)
-	log.Printf("  /tours/*        -> %s", toursURL)
-	log.Printf("  /tours/grpc/*   -> %s (gRPC)", toursGRPCURL)
+	// --- Monitoring ---
+	mux.Handle("/metrics", metricsHandler())
+	mux.Handle("/health", healthHandler(map[string]interface {
+		GetState() connectivity.State
+	}{
+		"stakeholders": grpcConn,
+		"tours":        toursGrpcConn,
+		"payments":     paymentsGrpcConn,
+		"blog":         blogsGrpcConn,
+	}))
 
-	if err := http.ListenAndServe(":"+port, corsMiddleware(mux)); err != nil {
+	port := getEnvOrDefault("PORT", "8080")
+	logger.Info("gateway starting", "port", port,
+		"stakeholders_url", stakeholdersURL, "blog_url", blogURL,
+		"followers_url", followersURL, "tours_url", toursURL, "tours_grpc_url", toursGRPCURL)
+
+	handler := corsMiddleware(otelhttp.NewHandler(observabilityMiddleware(logger, mux), serviceName))
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
+		logger.Error("gateway stopped", "error", err)
 		log.Fatalf("Gateway nije mogao da se pokrene: %v", err)
 	}
 }

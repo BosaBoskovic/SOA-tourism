@@ -159,3 +159,208 @@ groups:
         labels:
           severity: warning
           team: soa-tourism
+
+  - orgId: 1
+    name: "Application Alerts"
+    folder: "SOA Tourism"
+    interval: 1m
+    rules:
+      - uid: alert-service-down
+        title: "🔴 Servis nedostupan Prometheus-u"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "up{job=\"services\"} == 0"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "Prometheus ne uspijeva da skrejpuje {{ $labels.service }}"
+          description: "Instanca {{ $labels.instance }} ({{ $labels.service }}) je down duže od 1 minuta. Ili je kontejner pao ili /metrics ne odgovara."
+        labels:
+          severity: critical
+          team: soa-tourism
+
+      - uid: alert-high-error-rate
+        title: "⚠ Visoka stopa 5xx grešaka po servisu (> 5%)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "sum by (service) (rate(http_requests_total{status=~\"5..\"}[5m])) / sum by (service) (rate(http_requests_total[5m])) * 100"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "{{ $labels.service }} vraća preko 5% 5xx odgovora"
+          description: "Stopa 5xx grešaka za {{ $labels.service }} je iznad 5% u poslednjih 5 minuta."
+        labels:
+          severity: critical
+          team: soa-tourism
+
+      - uid: alert-high-latency
+        title: "⚠ Visoka p95 latencija po servisu (> 1s)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[5m])))"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "{{ $labels.service }} ima p95 latenciju iznad 1s"
+          description: "95-ti percentil trajanja zahtjeva za {{ $labels.service }} je preko 1 sekunde u poslednjih 5 minuta."
+        labels:
+          severity: warning
+          team: soa-tourism
+
+      - uid: alert-rabbitmq-queue-backlog
+        title: "⚠ RabbitMQ red poruka se gomila (> 500 spremnih poruka)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "sum(rabbitmq_queue_messages_ready)"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 500
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "RabbitMQ ima veliki broj neobrađenih poruka"
+          description: "Konzumenti (tours/payments) ne stižu da obrade poruke iz reda — provjeri da li su servisi živi."
+        labels:
+          severity: warning
+          team: soa-tourism

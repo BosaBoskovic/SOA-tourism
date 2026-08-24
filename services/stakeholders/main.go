@@ -43,7 +43,19 @@ func seedAdmin(accountRepo *repo.AccountRepo) {
 }
 
 func main() {
+	logger := newLogger()
 	ctx := context.Background()
+
+	tp, err := initTracer(ctx)
+	if err != nil {
+		logger.Error("opentelemetry init failed", "error", err)
+		log.Fatal(err)
+	}
+	defer func() {
+		if err := tp.Shutdown(ctx); err != nil {
+			logger.Error("opentelemetry shutdown failed", "error", err)
+		}
+	}()
 
 	neo4jURI := getEnvOrDefault("NEO4J_URI", "neo4j://localhost:7687")
 	neo4jUser := getEnvOrDefault("NEO4J_USER", "neo4j")
@@ -82,7 +94,8 @@ func main() {
 		log.Fatalf("cannot create neo4j constraints: %v", err)
 	}
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery(), tracingMiddleware(), observabilityMiddleware(logger))
 	grpcPort := getEnvOrDefault("STAKEHOLDERS_GRPC_PORT", "9091")
 	go func() {
 		if err := rpc.StartGRPCServer(grpcPort, authService, profileService); err != nil {
@@ -93,8 +106,11 @@ func main() {
 	r.GET("/stakeholders", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Stakeholders service radi"})
 	})
+	r.GET("/health", healthHandler(driver))
+	r.GET("/metrics", metricsHandler())
 	authHandler.RegisterRoutes(r)
 	profileHandler.RegisterRoutes(r)
 
+	logger.Info("stakeholders service starting", "port", 8081, "grpc_port", grpcPort)
 	r.Run(":8081")
 }

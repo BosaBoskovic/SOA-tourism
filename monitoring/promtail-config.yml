@@ -9,18 +9,43 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
+  # Docker service discovery instead of a static file glob: this gives us a
+  # real "service" label (derived from the container name) without every
+  # service having to agree on a log field for it.
   - job_name: docker-logs
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: docker
-          __path__: /var/lib/docker/containers/*/*-json.log
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        regex: '/soa-(.*)'
+        target_label: service
+      - source_labels: [__meta_docker_container_name]
+        regex: '/(.*)'
+        target_label: container
+
     pipeline_stages:
+      # Unwrap the Docker JSON-file log envelope ({"log":"...","stream":"...","time":"..."}).
       - docker: {}
-      - regex:
-          expression: '/var/lib/docker/containers/(?P<container_id>[^/]+)/[^/]+-json\.log'
-          source: filename
+
+      # Our services log one JSON object per line (see each service's
+      # logging setup). Services that still log plain text (or a line that
+      # isn't JSON) simply fall through with no extra labels/metadata below,
+      # they're still stored and searchable by line content.
+      - json:
+          expressions:
+            level: level
+            trace_id: trace_id
+            span_id: span_id
+
+      # level is low-cardinality (debug/info/warn/error) -> safe as an
+      # indexed label, so you can filter with e.g. {service="tours-service", level="error"}.
       - labels:
-          container_id:
-      - docker: {}
+          level:
+
+      # trace_id/span_id are effectively unique per request -> stored as
+      # structured metadata (Loki 2.9+), not labels, so they don't blow up
+      # the index. Lets you jump from a log line straight to its Jaeger trace.
+      - structured_metadata:
+          trace_id:
+          span_id:
