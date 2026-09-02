@@ -142,11 +142,11 @@ func (r *AccountRepo) FindByIdentity(ctx context.Context, identity string) (*mod
 		passwordHash, _ := rec.Get("passwordHash")
 
 		return &model.Account{
-			Username:     username.(string),
-			Email:        email.(string),
-			Role:         role.(string),
-			IsBlocked:    isBlocked.(bool),
-			PasswordHash: passwordHash.(string),
+			Username:     asString(username),
+			Email:        asString(email),
+			Role:         asString(role),
+			IsBlocked:    asBool(isBlocked),
+			PasswordHash: asString(passwordHash),
 		}, nil
 	})
 	if err != nil {
@@ -228,7 +228,7 @@ func (r *AccountRepo) BlockAccount(ctx context.Context, username string) error {
 			return nil, errors.New("account_not_found")
 		}
 		role, _ := records[0].Get("role")
-		if role.(string) == "admin" {
+		if asString(role) == "admin" {
 			return nil, errors.New("cannot_block_admin")
 		}
 

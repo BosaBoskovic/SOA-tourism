@@ -104,7 +104,7 @@ func main() {
 		log.Fatalf("cannot connect to neo4j: %v", err)
 	}
 
-	profileRepo := repo.NewProfileRepo(driver)
+	profileRepo := repo.NewProfileRepo(driver, neo4jDatabase)
 
 	accountRepo := repo.NewAccountRepo(driver, neo4jDatabase)
 	seedAdmin(accountRepo)

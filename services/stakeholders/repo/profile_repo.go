@@ -9,15 +9,16 @@ import (
 )
 
 type ProfileRepo struct {
-	driver neo4j.DriverWithContext
+	driver   neo4j.DriverWithContext
+	database string
 }
 
-func NewProfileRepo(driver neo4j.DriverWithContext) *ProfileRepo {
-	return &ProfileRepo{driver: driver}
+func NewProfileRepo(driver neo4j.DriverWithContext, database string) *ProfileRepo {
+	return &ProfileRepo{driver: driver, database: database}
 }
 
 func (r *ProfileRepo) CreateProfile(ctx context.Context, p model.Profile) error {
-	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite, DatabaseName: r.database})
 	defer session.Close(ctx)
 
 	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
@@ -40,7 +41,7 @@ func (r *ProfileRepo) CreateProfile(ctx context.Context, p model.Profile) error 
 }
 
 func (r *ProfileRepo) GetByUsername(ctx context.Context, username string) (*model.Profile, error) {
-	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead, DatabaseName: r.database})
 	defer session.Close(ctx)
 
 	result, err := session.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
@@ -62,17 +63,17 @@ func (r *ProfileRepo) GetByUsername(ctx context.Context, username string) (*mode
 	}
 	rec := result.(*neo4j.Record)
 	return &model.Profile{
-		Username:  rec.Values[0].(string),
-		FirstName: rec.Values[1].(string),
-		LastName:  rec.Values[2].(string),
-		ImageURL:  rec.Values[3].(string),
-		Bio:       rec.Values[4].(string),
-		Motto:     rec.Values[5].(string),
+		Username:  asString(rec.Values[0]),
+		FirstName: asString(rec.Values[1]),
+		LastName:  asString(rec.Values[2]),
+		ImageURL:  asString(rec.Values[3]),
+		Bio:       asString(rec.Values[4]),
+		Motto:     asString(rec.Values[5]),
 	}, nil
 }
 
 func (r *ProfileRepo) Update(ctx context.Context, username string, req model.UpdateProfileRequest) error {
-	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite, DatabaseName: r.database})
 	defer session.Close(ctx)
 
 	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
@@ -107,7 +108,7 @@ func (r *ProfileRepo) Update(ctx context.Context, username string, req model.Upd
 }
 
 func (r *ProfileRepo) GetPublicByUsername(ctx context.Context, username string) (*model.PublicProfileResponse, error) {
-	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead, DatabaseName: r.database})
 	defer session.Close(ctx)
 
 	result, err := session.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
@@ -129,18 +130,18 @@ func (r *ProfileRepo) GetPublicByUsername(ctx context.Context, username string) 
 	}
 	rec := result.(*neo4j.Record)
 	return &model.PublicProfileResponse{
-		Username:  rec.Values[0].(string),
-		FirstName: rec.Values[1].(string),
-		LastName:  rec.Values[2].(string),
-		ImageURL:  rec.Values[3].(string),
-		Bio:       rec.Values[4].(string),
-		Motto:     rec.Values[5].(string),
-		Role:      rec.Values[6].(string),
+		Username:  asString(rec.Values[0]),
+		FirstName: asString(rec.Values[1]),
+		LastName:  asString(rec.Values[2]),
+		ImageURL:  asString(rec.Values[3]),
+		Bio:       asString(rec.Values[4]),
+		Motto:     asString(rec.Values[5]),
+		Role:      asString(rec.Values[6]),
 	}, nil
 }
 
 func (r *ProfileRepo) Search(ctx context.Context, username, role string, limit int) ([]model.PublicProfileResponse, error) {
-	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead, DatabaseName: r.database})
 	defer session.Close(ctx)
 
 	result, err := session.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
@@ -167,13 +168,13 @@ func (r *ProfileRepo) Search(ctx context.Context, username, role string, limit i
 		profiles := make([]model.PublicProfileResponse, 0, len(records))
 		for _, rec := range records {
 			profiles = append(profiles, model.PublicProfileResponse{
-				Username:  rec.Values[0].(string),
-				FirstName: rec.Values[1].(string),
-				LastName:  rec.Values[2].(string),
-				ImageURL:  rec.Values[3].(string),
-				Bio:       rec.Values[4].(string),
-				Motto:     rec.Values[5].(string),
-				Role:      rec.Values[6].(string),
+				Username:  asString(rec.Values[0]),
+				FirstName: asString(rec.Values[1]),
+				LastName:  asString(rec.Values[2]),
+				ImageURL:  asString(rec.Values[3]),
+				Bio:       asString(rec.Values[4]),
+				Motto:     asString(rec.Values[5]),
+				Role:      asString(rec.Values[6]),
 			})
 		}
 		return profiles, nil

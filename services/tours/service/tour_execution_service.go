@@ -70,7 +70,21 @@ func (s *TourExecutionService) Start(req *model.StartExecutionRequest) (*model.T
 
 position, err := s.positionRepo.FindByTouristID(req.TouristID)
 if err != nil {
-    return nil, errors.New("tourist position not found, cannot start tour")
+    // No stored position yet - fall back to whatever the client sent
+    // with the start request instead of hard-failing (a client submitting
+    // a starting location used to have it silently ignored).
+    if req.Latitude == 0 && req.Longitude == 0 {
+        return nil, errors.New("tourist position not found, cannot start tour")
+    }
+    position = &model.TouristPosition{
+        TouristID: req.TouristID,
+        Latitude:  req.Latitude,
+        Longitude: req.Longitude,
+        UpdatedAt: time.Now(),
+    }
+    if updateErr := s.positionRepo.Upsert(position); updateErr != nil {
+        return nil, updateErr
+    }
 }
 
 	now := time.Now()

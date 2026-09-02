@@ -468,6 +468,10 @@ func main() {
             }
 
             b := resp.Blog
+            if b == nil {
+                writeJSON(w, http.StatusNotFound, map[string]any{"error": "Blog nije pronadjen"})
+                return
+            }
             writeJSON(w, http.StatusOK, map[string]any{
                 "blog": map[string]any{
                     "id":                  b.Id,
@@ -575,6 +579,10 @@ func main() {
 			return
 		}
 		t := resp.Tour
+		if t == nil {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "Tura nije pronadjena"})
+			return
+		}
 		durations := make([]map[string]any, 0, len(t.Durations))
 		for _, d := range t.Durations {
 			durations = append(durations, map[string]any{

@@ -2,6 +2,7 @@ package com.example.blog.model;
 
 import lombok.Data;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -15,6 +16,12 @@ public class Blog{
 
     @Id
     private String id;
+
+    // Optimistic locking: two concurrent likes/comments on the same blog
+    // used to silently overwrite each other (last full-document save() wins).
+    // Spring Data now rejects the stale write instead (see GlobalExceptionHandler).
+    @Version
+    private Long version;
 
     private String title;
 

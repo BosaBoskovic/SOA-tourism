@@ -3,6 +3,7 @@ package com.example.blog.config;
 import com.example.blog.exception.BlogAccessDeniedException;
 import com.example.blog.exception.BlogNotFoundException;
 import com.example.blog.exception.UnauthorizedException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -38,6 +39,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({MissingRequestHeaderException.class, HttpMediaTypeNotSupportedException.class, IllegalArgumentException.class})
     public ResponseEntity<Map<String, String>> badRequest(Exception ex) {
         return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+    }
+
+    // Two concurrent writes (e.g. two likes at once) racing on the same
+    // blog - the loser should retry, not see a generic error.
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, String>> conflict(OptimisticLockingFailureException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "This blog was updated by someone else at the same time, please retry"));
     }
 
     // The followers service being down/slow shouldn't look like a blog bug to the caller.
