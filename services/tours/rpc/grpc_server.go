@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"time"
+	"tours/model"
 	"tours/service"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -74,7 +75,7 @@ func (s *ToursGrpcServer) GetTour(ctx context.Context, req *toursv1.GetTourReque
 }
 
 func (s *ToursGrpcServer) GetPublishedTours(ctx context.Context, req *toursv1.GetPublishedToursRequest) (*toursv1.GetPublishedToursResponse, error) {
-	previews, err := s.tourService.GetPublished()
+	previews, err := s.tourService.GetPublished(model.TourSearchParams{})
 	if err != nil {
 		return nil, status.Error(codes.Internal, "get_published_tours_failed")
 	}

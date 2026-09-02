@@ -624,6 +624,14 @@ func main() {
 	mux.HandleFunc("/checkout/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> payments gRPC", r.Method, r.URL.Path)
 
+		// POST /checkout/analytics — guide-facing purchase/revenue aggregation,
+		// not a per-tourist checkout - goes straight to the REST proxy below,
+		// same as any other /checkout/* path that isn't specially handled here.
+		if r.Method == http.MethodPost && r.URL.Path == "/checkout/analytics" {
+			paymentsProxy.ServeHTTP(w, r)
+			return
+		}
+
 		// POST /checkout/{touristId} — Checkout via gRPC
 		if r.Method == http.MethodPost {
 			parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/checkout/"), "/")

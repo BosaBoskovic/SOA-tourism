@@ -120,4 +120,23 @@ public class CheckoutService
     {
         return await _tokenRepo.HasPurchasedAsync(touristId, tourId);
     }
+
+    // Guide-facing analytics: purchase count + revenue per tour.
+    public async Task<List<TourAnalytics>> GetAnalyticsAsync(IEnumerable<string> tourIds)
+    {
+        var analytics = await _tokenRepo.GetAnalyticsAsync(tourIds);
+        return analytics.Select(kvp => new TourAnalytics
+        {
+            TourId = kvp.Key,
+            PurchaseCount = kvp.Value.Count,
+            Revenue = kvp.Value.Revenue,
+        }).ToList();
+    }
+}
+
+public class TourAnalytics
+{
+    public string TourId { get; set; } = string.Empty;
+    public int PurchaseCount { get; set; }
+    public decimal Revenue { get; set; }
 }

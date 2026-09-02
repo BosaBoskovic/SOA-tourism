@@ -68,6 +68,19 @@ type CreateTourRequest struct {
 	Durations   []TourDuration  `json:"durations"`
 }
 
+// TourSearchParams is built from GET /tours query params - every field is
+// optional, an empty TourSearchParams matches every published tour.
+type TourSearchParams struct {
+	Difficulty  string
+	Tags        []string
+	MinPrice    *float64
+	MaxPrice    *float64
+	MinLengthKm *float64
+	MaxLengthKm *float64
+	SortBy      string // "price" | "length" | "name" | "" (newest first)
+	SortDir     string // "asc" | "desc"
+}
+
 type UpdateTourRequest struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`

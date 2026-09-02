@@ -44,6 +44,21 @@ public class CheckoutController : ControllerBase
         return Ok(tokens);
     }
 
+    // POST /checkout/analytics - guide-facing purchase count/revenue per
+    // tour. Any authenticated caller can ask (the response only aggregates
+    // numbers, no per-tourist identity), matching HasPurchased's low
+    // sensitivity rather than needing an ownership check like the tourist-scoped endpoints above.
+    [HttpPost("analytics")]
+    public async Task<IActionResult> GetAnalytics([FromBody] List<string> tourIds)
+    {
+        if (tourIds == null || tourIds.Count == 0)
+        {
+            return Ok(new List<TourAnalytics>());
+        }
+        var analytics = await _checkoutService.GetAnalyticsAsync(tourIds);
+        return Ok(analytics);
+    }
+
     // GET /checkout/{touristId}/has-purchased/{tourId}
     // Called service-to-service by tours (to gate review creation) with no
     // bearer token, so this one stays open rather than requiring auth -

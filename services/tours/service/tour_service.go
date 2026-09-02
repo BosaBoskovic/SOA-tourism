@@ -131,8 +131,8 @@ func (s *TourService) Update(id string, req *model.UpdateTourRequest, callerUser
 	return s.repo.FindByID(oid)
 }
 
-func (s *TourService) GetPublished() ([]model.TourPreview, error) {
-	tours, err := s.repo.FindAllPublished()
+func (s *TourService) GetPublished(params model.TourSearchParams) ([]model.TourPreview, error) {
+	tours, err := s.repo.FindPublishedFiltered(params)
 	if err != nil {
 		return nil, err
 	}

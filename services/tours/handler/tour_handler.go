@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"tours/model"
 	"tours/service"
 
@@ -89,9 +90,26 @@ func (h *TourHandler) Update(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, tour)
 }
 
-// GET /tours
+// GET /tours?difficulty=&tags=a,b&minPrice=&maxPrice=&minLengthKm=&maxLengthKm=&sortBy=price|length|name&sortDir=asc|desc
 func (h *TourHandler) GetPublished(w http.ResponseWriter, r *http.Request) {
-	tours, err := h.service.GetPublished()
+	params := model.TourSearchParams{
+		Difficulty: r.URL.Query().Get("difficulty"),
+		SortBy:     r.URL.Query().Get("sortBy"),
+		SortDir:    r.URL.Query().Get("sortDir"),
+	}
+	if rawTags := r.URL.Query().Get("tags"); rawTags != "" {
+		for _, t := range strings.Split(rawTags, ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				params.Tags = append(params.Tags, t)
+			}
+		}
+	}
+	params.MinPrice = parseOptionalFloat(r.URL.Query().Get("minPrice"))
+	params.MaxPrice = parseOptionalFloat(r.URL.Query().Get("maxPrice"))
+	params.MinLengthKm = parseOptionalFloat(r.URL.Query().Get("minLengthKm"))
+	params.MaxLengthKm = parseOptionalFloat(r.URL.Query().Get("maxLengthKm"))
+
+	tours, err := h.service.GetPublished(params)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return

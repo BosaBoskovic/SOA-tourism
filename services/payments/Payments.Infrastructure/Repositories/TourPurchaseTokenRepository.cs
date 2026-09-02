@@ -38,4 +38,17 @@ public class TourPurchaseTokenRepository
         _db.TourPurchaseTokens.RemoveRange(tokens);
         await _db.SaveChangesAsync();
     }
+
+    // Powers guide-facing analytics: purchase count + revenue per tour.
+    public async Task<Dictionary<string, (int Count, decimal Revenue)>> GetAnalyticsAsync(IEnumerable<string> tourIds)
+    {
+        var ids = tourIds.Distinct().ToList();
+        var grouped = await _db.TourPurchaseTokens
+            .Where(t => ids.Contains(t.TourId))
+            .GroupBy(t => t.TourId)
+            .Select(g => new { TourId = g.Key, Count = g.Count(), Revenue = g.Sum(t => t.Price) })
+            .ToListAsync();
+
+        return grouped.ToDictionary(g => g.TourId, g => (g.Count, g.Revenue));
+    }
 }

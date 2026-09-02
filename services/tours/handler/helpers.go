@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"tours/auth"
 	"tours/service"
@@ -42,4 +43,17 @@ func respondServiceError(w http.ResponseWriter, err error, defaultStatus int) {
 		return
 	}
 	respondError(w, defaultStatus, err.Error())
+}
+
+// parseOptionalFloat returns nil for an empty/unparseable string instead of
+// erroring - query params like minPrice are optional filters.
+func parseOptionalFloat(raw string) *float64 {
+	if raw == "" {
+		return nil
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return nil
+	}
+	return &v
 }

@@ -7,6 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type TourRepository struct {
@@ -80,10 +81,62 @@ func (r *TourRepository) Update(id bson.ObjectID, update bson.M) error {
 }
 
 func (r *TourRepository) FindAllPublished() ([]model.Tour, error) {
+	return r.FindPublishedFiltered(model.TourSearchParams{})
+}
+
+// FindPublishedFiltered applies FindAllPublished's same "published" gate plus
+// whatever optional filters/sort the caller asked for - an empty
+// TourSearchParams behaves exactly like FindAllPublished.
+func (r *TourRepository) FindPublishedFiltered(params model.TourSearchParams) ([]model.Tour, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := r.collection.Find(ctx, bson.M{"status": model.StatusPublished})
+	filter := bson.M{"status": model.StatusPublished}
+
+	if params.Difficulty != "" {
+		filter["difficulty"] = params.Difficulty
+	}
+	if len(params.Tags) > 0 {
+		filter["tags"] = bson.M{"$in": params.Tags}
+	}
+	if params.MinPrice != nil || params.MaxPrice != nil {
+		priceFilter := bson.M{}
+		if params.MinPrice != nil {
+			priceFilter["$gte"] = *params.MinPrice
+		}
+		if params.MaxPrice != nil {
+			priceFilter["$lte"] = *params.MaxPrice
+		}
+		filter["price"] = priceFilter
+	}
+	if params.MinLengthKm != nil || params.MaxLengthKm != nil {
+		lengthFilter := bson.M{}
+		if params.MinLengthKm != nil {
+			lengthFilter["$gte"] = *params.MinLengthKm
+		}
+		if params.MaxLengthKm != nil {
+			lengthFilter["$lte"] = *params.MaxLengthKm
+		}
+		filter["lengthKm"] = lengthFilter
+	}
+
+	sortField := "publishedAt"
+	switch params.SortBy {
+	case "price":
+		sortField = "price"
+	case "length":
+		sortField = "lengthKm"
+	case "name":
+		sortField = "name"
+	}
+	sortDir := -1
+	if params.SortDir == "asc" {
+		sortDir = 1
+	}
+
+	opts := options.Find().SetSort(bson.D{{Key: sortField, Value: sortDir}})
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
 	}
