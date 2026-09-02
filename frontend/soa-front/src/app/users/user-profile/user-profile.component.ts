@@ -22,6 +22,11 @@ export class UserProfileComponent implements OnInit {
   isSelf = false;
   updating = false;
 
+  activeTab: 'following' | 'followers' = 'following';
+  followingList: string[] = [];
+  followersList: string[] = [];
+  listsLoaded = false;
+
   constructor(
     private route: ActivatedRoute,
     private profileService: ProfileService,
@@ -58,6 +63,7 @@ export class UserProfileComponent implements OnInit {
           if (!this.isSelf && this.currentUser?.username) {
             this.checkFollowStatus(this.currentUser.username, res.profile.username);
           }
+          this.loadLists(res.profile.username);
         });
       },
       error: (err) => {
@@ -112,6 +118,33 @@ export class UserProfileComponent implements OnInit {
           this.cdr.detectChanges();
         });
       }
+    });
+  }
+
+  setTab(tab: 'following' | 'followers'): void {
+    this.activeTab = tab;
+  }
+
+  private loadLists(username: string): void {
+    this.listsLoaded = false;
+    this.followersService.getFollowing(username).subscribe({
+      next: (res) => {
+        this.zone.run(() => {
+          this.followingList = res.following;
+          this.listsLoaded = true;
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => { this.zone.run(() => { this.listsLoaded = true; this.cdr.detectChanges(); }); }
+    });
+    this.followersService.getFollowers(username).subscribe({
+      next: (res) => {
+        this.zone.run(() => {
+          this.followersList = res.followers;
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {}
     });
   }
 

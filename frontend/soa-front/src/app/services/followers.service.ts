@@ -34,6 +34,12 @@ export class FollowersService {
     );
   }
 
+  getFollowers(username: string): Observable<{ username: string; followers: string[] }> {
+    return this.http.get<{ username: string; followers: string[] }>(
+      `${this.apiUrl}/followers/${encodeURIComponent(username)}`
+    );
+  }
+
   isFollowing(followerUsername: string, targetUsername: string): Observable<{ isFollowing: boolean }> {
     const params = new HttpParams()
       .set('followerUsername', followerUsername)

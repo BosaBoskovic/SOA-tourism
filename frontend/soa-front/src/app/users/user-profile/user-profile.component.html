@@ -37,6 +37,35 @@
           Uredi profil
         </a>
       </div>
+
+      <div class="follow-lists" *ngIf="listsLoaded">
+        <div class="tabs">
+          <button
+            type="button"
+            [class.active]="activeTab === 'following'"
+            (click)="setTab('following')"
+          >Prati ({{ followingList.length }})</button>
+          <button
+            type="button"
+            [class.active]="activeTab === 'followers'"
+            (click)="setTab('followers')"
+          >Prati ga/je ({{ followersList.length }})</button>
+        </div>
+
+        <ul class="user-list" *ngIf="activeTab === 'following'">
+          <li *ngFor="let username of followingList">
+            <a [routerLink]="['/users', username]">@{{ username }}</a>
+          </li>
+          <li *ngIf="followingList.length === 0" class="empty">Niko još.</li>
+        </ul>
+
+        <ul class="user-list" *ngIf="activeTab === 'followers'">
+          <li *ngFor="let username of followersList">
+            <a [routerLink]="['/users', username]">@{{ username }}</a>
+          </li>
+          <li *ngIf="followersList.length === 0" class="empty">Niko još.</li>
+        </ul>
+      </div>
     </div>
   </div>
 </div>
