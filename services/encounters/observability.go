@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
@@ -120,10 +121,27 @@ func metricsHandler() gin.HandlerFunc {
 	}
 }
 
-// healthHandler is a plain liveness check: encounters has no external
-// dependencies wired up yet, so "process answers HTTP" is the whole check.
-func healthHandler() gin.HandlerFunc {
+// healthHandler reports liveness plus MongoDB connectivity.
+func healthHandler(client *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"service": serviceName, "status": "ok"})
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+		defer cancel()
+
+		status := "ok"
+		mongoStatus := "ok"
+		httpStatus := http.StatusOK
+		if err := client.Ping(ctx, nil); err != nil {
+			status = "degraded"
+			mongoStatus = "error: " + err.Error()
+			httpStatus = http.StatusServiceUnavailable
+		}
+
+		c.JSON(httpStatus, gin.H{
+			"service": serviceName,
+			"status":  status,
+			"checks": gin.H{
+				"mongodb": mongoStatus,
+			},
+		})
 	}
 }

@@ -184,8 +184,8 @@ services:
     networks:
       - soa-network
 
-  # ENCOUNTERS - stub servis, ukljucen radi konzistentnog monitoringa
-  # (nema jos poslovnu logiku niti rutu na gateway-u)
+  # ENCOUNTERS - proximity-based izazovi (tura/keypoint opcioni), svoja
+  # "encountersDB" baza na istom Mongo serveru koji koristi tours
   encounters:
     build:
       context: .
@@ -193,8 +193,14 @@ services:
     container_name: soa-encounters
     # No host port published - gateway-only (see network lockdown notes below).
     environment:
+      PORT: 8083
+      MONGODB_URI: soa-mongodb-tours:27017
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: encounters-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
+    depends_on:
+      mongodb-tours:
+        condition: service_healthy
     restart: on-failure
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8083/health"]
@@ -220,6 +226,7 @@ services:
       STAKEHOLDERS_GRPC_URL: soa-stakeholders:9091
       BLOG_URL: http://soa-blog:8082
       FOLLOWERS_URL: http://soa-followers:8084
+      ENCOUNTERS_URL: http://soa-encounters:8083
       TOURS_URL: http://soa-tours:8085
       TOURS_GRPC_URL: soa-tours:9093
       PAYMENTS_URL: http://soa-payments:8086
@@ -242,6 +249,8 @@ services:
       tours:
         condition: service_healthy
       payments:
+        condition: service_healthy
+      encounters:
         condition: service_healthy
     restart: on-failure
     healthcheck:

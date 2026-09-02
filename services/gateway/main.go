@@ -191,6 +191,7 @@ func main() {
 	stakeholdersGRPCURL := getEnvOrDefault("STAKEHOLDERS_GRPC_URL", "localhost:9091")
 	blogURL := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
 	followersURL := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
+	encountersURL := getEnvOrDefault("ENCOUNTERS_URL", "http://localhost:8083")
 	toursURL := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
 	toursGRPCURL := getEnvOrDefault("TOURS_GRPC_URL", "localhost:9093")
 	paymentsGRPCURL := getEnvOrDefault("PAYMENTS_GRPC_URL", "localhost:9092")
@@ -230,6 +231,7 @@ func main() {
 	stakeholdersProxy := newReverseProxy(stakeholdersURL)
 	blogProxy := newReverseProxy(blogURL)
 	followersProxy := newReverseProxy(followersURL)
+	encountersProxy := newReverseProxy(encountersURL)
 	toursProxy := newReverseProxy(toursURL)
 
 	mux := http.NewServeMux()
@@ -477,6 +479,16 @@ func main() {
 	mux.Handle("/followers/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GATEWAY] %s %s -> followers", r.Method, r.URL.Path)
 		followersProxy.ServeHTTP(w, r)
+	})))
+
+	// --- Encounters servis ---
+	mux.Handle("/encounters", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> encounters", r.Method, r.URL.Path)
+		encountersProxy.ServeHTTP(w, r)
+	})))
+	mux.Handle("/encounters/", withUsername(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[GATEWAY] %s %s -> encounters", r.Method, r.URL.Path)
+		encountersProxy.ServeHTTP(w, r)
 	})))
 
 	// --- Tours gRPC endpointi (novo) ---
