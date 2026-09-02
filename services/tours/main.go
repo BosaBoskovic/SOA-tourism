@@ -129,8 +129,6 @@ func main() {
 	purchaseRepo := repository.NewPurchaseRepository()
 
 	// RabbitMQ consumers
-    messaging.StartCheckoutConsumer(tourRepo)
-
     messaging.StartPurchaseCompletedConsumer(purchaseRepo)
 
 	// Services

@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Payments.API.Auth;
 using Payments.Application.Services;
 
 namespace Payments.API.Controllers;
 
 [ApiController]
 [Route("checkout")]
+[Authorize]
 public class CheckoutController : ControllerBase
 {
     private readonly CheckoutService _checkoutService;
@@ -18,6 +21,8 @@ public class CheckoutController : ControllerBase
     [HttpPost("{touristId}")]
     public async Task<IActionResult> Checkout(string touristId)
     {
+        if (CallerAuth.EnsureCallerIsTourist(User, touristId) is { } forbidden) return forbidden;
+
         try
         {
             var tokens = await _checkoutService.CheckoutAsync(touristId);
@@ -33,12 +38,18 @@ public class CheckoutController : ControllerBase
     [HttpGet("{touristId}/purchases")]
     public async Task<IActionResult> GetPurchases(string touristId)
     {
+        if (CallerAuth.EnsureCallerIsTourist(User, touristId) is { } forbidden) return forbidden;
+
         var tokens = await _checkoutService.GetPurchasedToursAsync(touristId);
         return Ok(tokens);
     }
 
     // GET /checkout/{touristId}/has-purchased/{tourId}
+    // Called service-to-service by tours (to gate review creation) with no
+    // bearer token, so this one stays open rather than requiring auth -
+    // it only discloses a yes/no purchase flag, not cart/purchase contents.
     [HttpGet("{touristId}/has-purchased/{tourId}")]
+    [AllowAnonymous]
     public async Task<IActionResult> HasPurchased(string touristId, string tourId)
     {
         var result = await _checkoutService.HasPurchasedAsync(touristId, tourId);

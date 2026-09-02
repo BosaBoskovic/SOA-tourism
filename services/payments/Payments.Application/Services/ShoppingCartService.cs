@@ -1,4 +1,5 @@
-﻿using Payments.Domain.Entities;
+﻿using Payments.Application.Clients;
+using Payments.Domain.Entities;
 using Payments.Infrastructure.Repositories;
 
 namespace Payments.Application.Services;
@@ -6,10 +7,12 @@ namespace Payments.Application.Services;
 public class ShoppingCartService
 {
     private readonly ShoppingCartRepository _cartRepo;
+    private readonly TourClient _tourClient;
 
-    public ShoppingCartService(ShoppingCartRepository cartRepo)
+    public ShoppingCartService(ShoppingCartRepository cartRepo, TourClient tourClient)
     {
         _cartRepo = cartRepo;
+        _tourClient = tourClient;
     }
 
     public async Task<ShoppingCart> GetCartAsync(string touristId)
@@ -17,8 +20,15 @@ public class ShoppingCartService
         return await _cartRepo.GetOrCreateAsync(touristId);
     }
 
-    public async Task<ShoppingCart> AddItemAsync(string touristId, string tourId, string tourName, decimal price)
+    // tourId is the only thing about the item that's actually trusted from
+    // the client - name and price always come from the tour itself, never
+    // from the request body, so a cart (and the checkout that follows it)
+    // can't be built with a forged price.
+    public async Task<ShoppingCart> AddItemAsync(string touristId, string tourId)
     {
+        var tour = await _tourClient.GetPurchasableTourAsync(tourId)
+            ?? throw new InvalidOperationException("Tura nije dostupna za kupovinu.");
+
         var cart = await _cartRepo.GetOrCreateAsync(touristId);
 
         // Proveri da li je tura već u korpi
@@ -29,8 +39,8 @@ public class ShoppingCartService
         {
             ShoppingCartId = cart.Id,
             TourId = tourId,
-            TourName = tourName,
-            Price = price
+            TourName = tour.Name,
+            Price = tour.Price
         };
 
         cart.Items.Add(item);

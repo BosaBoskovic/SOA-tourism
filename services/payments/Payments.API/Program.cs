@@ -1,6 +1,9 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Payments.API.Grpc;
@@ -10,9 +13,32 @@ using Payments.Infrastructure.Data;
 using Payments.Infrastructure.Repositories;
 using Payments.Application.Clients;
 using Payments.Infrastructure.Messaging;
-using Payments.API.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- Auth: verifies the same HS256 access tokens stakeholders issues ---
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    throw new InvalidOperationException("JWT_SECRET is not set; payments cannot verify tokens");
+}
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false; // keep "sub"/"role" as-is instead of remapping to long claim URIs
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            NameClaimType = "sub",
+            RoleClaimType = "role",
+        };
+    });
+builder.Services.AddAuthorization();
 
 // --- Monitoring: structured JSON logs, tagged with the active trace/span ID ---
 builder.Logging.ClearProviders();
@@ -60,8 +86,6 @@ builder.Services.AddScoped<CheckoutService>();
 
 builder.Services.AddSingleton<RabbitMqPublisher>();
 
-builder.Services.AddHostedService<RabbitMqCheckoutConsumer>();
-
 builder.Services.AddHttpClient<TourClient>(client =>
 {
     var toursUrl = builder.Configuration["TOURS_URL"]
@@ -96,6 +120,9 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = HealthCheckJson.WriteResponse,
 });
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.MapGrpcService<PaymentsGrpcService>();

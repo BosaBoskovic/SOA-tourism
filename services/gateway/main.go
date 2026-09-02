@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -622,9 +623,14 @@ func main() {
 		if r.Method == http.MethodPost {
 			parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/checkout/"), "/")
 			touristId := parts[0]
+			if touristId == "" {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "tourist_id je obavezan"})
+				return
+			}
 
 			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 			defer cancel()
+			ctx = metadata.AppendToOutgoingContext(ctx, "authorization", r.Header.Get("Authorization"))
 
 			resp, err := paymentsGrpcClient.Checkout(ctx, &paymentsv1.CheckoutRequest{
 				TouristId: touristId,
@@ -658,6 +664,7 @@ func main() {
 
 				ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 				defer cancel()
+				ctx = metadata.AppendToOutgoingContext(ctx, "authorization", r.Header.Get("Authorization"))
 
 				resp, err := paymentsGrpcClient.HasPurchased(ctx, &paymentsv1.HasPurchasedRequest{
 					TouristId: touristId,

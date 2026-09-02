@@ -38,6 +38,9 @@ public class PaymentsDbContext : DbContext
             entity.Property(e => e.TouristId).IsRequired();
             entity.Property(e => e.TourId).IsRequired();
             entity.Property(e => e.Price).HasColumnType("decimal(18,2)");
+            // A tourist can only ever hold one token per tour - makes checkout
+            // safe to retry instead of silently creating duplicate purchases.
+            entity.HasIndex(e => new { e.TouristId, e.TourId }).IsUnique();
         });
     }
 }

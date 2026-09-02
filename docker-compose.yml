@@ -279,6 +279,7 @@ services:
       TOURS_URL: http://soa-tours:8085
       RABBITMQ_HOST: rabbitmq
       ConnectionStrings__DefaultConnection: "Host=soa-postgres-payments;Port=5432;Database=paymentsdb;Username=postgres;Password=postgres"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: payments-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
