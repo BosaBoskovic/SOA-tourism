@@ -10,6 +10,8 @@ import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import lombok.RequiredArgsConstructor;
+import org.owasp.html.PolicyFactory;
+import org.owasp.html.Sanitizers;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -26,6 +28,13 @@ public class BlogService{
 
     private final Parser markdownParser = Parser.builder().build();
     private final HtmlRenderer htmlRenderer = HtmlRenderer.builder().build();
+    // Allowlist policy: strips <script>/event handlers/etc. from whatever a
+    // user's markdown renders to, since the result is served verbatim to
+    // every reader (and, via bypassSecurityTrustHtml, injected raw on the frontend).
+    private final PolicyFactory htmlSanitizer = Sanitizers.FORMATTING
+            .and(Sanitizers.BLOCKS)
+            .and(Sanitizers.LINKS)
+            .and(Sanitizers.IMAGES);
 
     //kreiranje bloga
     public Blog createBlog(String title, String descriptionMarkdown, List<String>imageUrls, String authorUsername){
@@ -59,7 +68,8 @@ public class BlogService{
     public String renderMarkdown(String markdown){
         if(markdown == null) return "";
         Node document = markdownParser.parse(markdown);
-        return htmlRenderer.render(document);
+        String html = htmlRenderer.render(document);
+        return htmlSanitizer.sanitize(html);
     }
 
     public Blog addComment(String blogId, String authorUsername, String text){
@@ -82,10 +92,11 @@ public class BlogService{
         Blog blog = blogRepository.findById(blogId)
             .orElseThrow(() -> new BlogNotFoundException("Blog nije pronadjen"));
 
-        Comment comment = blog.getComments().stream().filter(c -> c.getId().equals(commentId)).findFirst().orElseThrow(()-> new RuntimeException("Komentar nije pronadjen"));
+        Comment comment = blog.getComments().stream().filter(c -> c.getId().equals(commentId)).findFirst()
+                .orElseThrow(() -> new BlogNotFoundException("Komentar nije pronadjen"));
 
         if(!comment.getAuthorUsername().equals(username)){
-            throw new RuntimeException("Nije tvoj komentar");
+            throw new BlogAccessDeniedException("Nije tvoj komentar");
         }
 
         comment.setText(newText);
@@ -94,7 +105,12 @@ public class BlogService{
     }
 
     public Blog likeBlog(String blogId, String username) {
-        Blog blog = blogRepository.findById(blogId).orElseThrow(() -> new RuntimeException("Blog nije pronadjen"));
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new BlogNotFoundException("Blog nije pronadjen"));
+
+        if (!followerClient.isFollowing(username, blog.getAuthorUsername())) {
+            throw new BlogAccessDeniedException("Morate zapratiti autora da biste lajkovali blog");
+        }
 
         if (blog.getLikes().contains(username)) {
             blog.getLikes().remove(username);

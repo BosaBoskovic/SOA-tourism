@@ -1,9 +1,9 @@
 package com.example.blog.controller;
 
-import com.example.blog.exception.BlogAccessDeniedException;
-import com.example.blog.exception.BlogNotFoundException;
+import com.example.blog.config.AuthUtil;
 import com.example.blog.model.Blog;
 import com.example.blog.service.BlogService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,22 +19,29 @@ public class BlogController{
 
     private final BlogService blogService;
 
-    //kreiranje bloga
-    //header: x-username (salje gateway ili klijent)
+    // Caller identity comes from the verified JWT (JwtAuthFilter), never a
+    // client/gateway-supplied header. Exceptions are mapped centrally in
+    // GlobalExceptionHandler.
+
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createBlog(@RequestBody Map<String, Object> body, @RequestHeader("X-Username") String username){
-        
+    public ResponseEntity<Map<String, Object>> createBlog(@RequestBody Map<String, Object> body, HttpServletRequest request){
+        String username = AuthUtil.requireUsername(request);
+
         String title = (String) body.get("title");
         String description = (String) body.get("descriptionMarkdown");
         List<String> images = (List<String>) body.get("imageUrls");
 
-        Blog blog = blogService.createBlog(title, description, images, username);
+        if (title == null || title.isBlank() || description == null || description.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "title and descriptionMarkdown are required"));
+        }
+
+        Blog blog = blogService.createBlog(title.trim(), description, images, username);
         return ResponseEntity.status(201).body(toBlogResponse(blog, username));
     }
 
-    //dobavljanje svih blogova
     @GetMapping
-    public ResponseEntity<List<Map<String, Object>>> getAllBlogs(@RequestHeader("X-Username") String username){
+    public ResponseEntity<List<Map<String, Object>>> getAllBlogs(HttpServletRequest request){
+        String username = AuthUtil.requireUsername(request);
         List<Map<String, Object>> blogs = blogService.getAllBlogsForUser(username).stream()
                 .map(blog -> toBlogResponse(blog, username))
                 .collect(java.util.stream.Collectors.toList());
@@ -43,33 +50,27 @@ public class BlogController{
 
     //dobavljanje jednog bloga (sa rendered markdown)
     @GetMapping("/{id}")
-    public ResponseEntity<?> getBlogById(@PathVariable String id, @RequestHeader("X-Username") String username){
-        try {
-            Blog blog = blogService.getBlogByIdForUser(id, username);
-            String renderedHtml = blogService.renderMarkdown(blog.getDescriptionMarkdown());
-            Map<String, Object> response = toBlogResponse(blog, username);
-            response.put("descriptionHtml", renderedHtml);
-            return ResponseEntity.ok(response);
-        } catch (BlogNotFoundException ex) {
-            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
-        } catch (BlogAccessDeniedException ex) {
-            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
-        }
+    public ResponseEntity<?> getBlogById(@PathVariable String id, HttpServletRequest request){
+        String username = AuthUtil.requireUsername(request);
+        Blog blog = blogService.getBlogByIdForUser(id, username);
+        String renderedHtml = blogService.renderMarkdown(blog.getDescriptionMarkdown());
+        Map<String, Object> response = toBlogResponse(blog, username);
+        response.put("descriptionHtml", renderedHtml);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/comments")
     public ResponseEntity<Map<String, Object>> addComment(
             @PathVariable String id,
             @RequestBody Map<String, String> body,
-            @RequestHeader("X-Username") String username) {
-        try {
-            Blog blog = blogService.addComment(id, username, body.get("text"));
-            return ResponseEntity.status(201).body(toBlogResponse(blog, username));
-        } catch (BlogNotFoundException ex) {
-            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
-        } catch (BlogAccessDeniedException ex) {
-            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+            HttpServletRequest request) {
+        String username = AuthUtil.requireUsername(request);
+        String text = body.get("text");
+        if (text == null || text.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
         }
+        Blog blog = blogService.addComment(id, username, text.trim());
+        return ResponseEntity.status(201).body(toBlogResponse(blog, username));
     }
 
     @PutMapping("/{blogId}/comments/{commentId}")
@@ -77,18 +78,19 @@ public class BlogController{
         @PathVariable String blogId,
         @PathVariable String commentId,
         @RequestBody Map<String, String> body,
-        @RequestHeader("X-Username") String username){
-
-            try{
-                Blog blog = blogService.editComment(blogId, commentId, username, body.get("text"));
-                return ResponseEntity.ok(toBlogResponse(blog, username));
-            }catch(RuntimeException e){
-                return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-            }
+        HttpServletRequest request){
+        String username = AuthUtil.requireUsername(request);
+        String text = body.get("text");
+        if (text == null || text.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
+        }
+        Blog blog = blogService.editComment(blogId, commentId, username, text.trim());
+        return ResponseEntity.ok(toBlogResponse(blog, username));
     }
 
     @PostMapping("/{id}/like")
-    public ResponseEntity<Map<String, Object>> likeBlog(@PathVariable String id, @RequestHeader("X-Username") String username) {
+    public ResponseEntity<Map<String, Object>> likeBlog(@PathVariable String id, HttpServletRequest request) {
+        String username = AuthUtil.requireUsername(request);
         Blog blog = blogService.likeBlog(id, username);
         return ResponseEntity.ok(Map.of(
                 "likesCount", blog.getLikes().size(),

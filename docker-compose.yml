@@ -87,6 +87,7 @@ services:
       MONGODB_URI: mongodb://soa-mongodb-blog:27017/blogdb
       MONGODB_DATABASE: blogdb
       FOLLOWER_SERVICE_URL: http://soa-followers:8084
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: blog-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
