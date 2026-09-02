@@ -9,6 +9,8 @@
     </a>
 
     <div class="menu-wrapper" *ngIf="currentUser">
+      <app-notification-bell></app-notification-bell>
+
       <div class="user-box">
         <span class="username">{{ currentUser.username }}</span>
 

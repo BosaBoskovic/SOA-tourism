@@ -1,0 +1,30 @@
+<div class="bell-wrapper">
+  <button type="button" class="bell-btn" (click)="toggle()">
+    🔔
+    <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+  </button>
+
+  <div class="dropdown" *ngIf="open">
+    <div class="dropdown-header">
+      <span>Obaveštenja</span>
+      <button type="button" class="mark-all" *ngIf="unreadCount > 0" (click)="markAllRead()">
+        Označi sve kao pročitano
+      </button>
+    </div>
+
+    <div class="notif-list" *ngIf="notifications.length > 0; else empty">
+      <div
+        class="notif-item"
+        *ngFor="let n of notifications"
+        [class.unread]="!n.read"
+        (click)="markRead(n)"
+      >
+        <p>{{ n.message }}</p>
+        <span class="time">{{ n.createdAt }}</span>
+      </div>
+    </div>
+    <ng-template #empty>
+      <p class="empty-state">Nema obaveštenja.</p>
+    </ng-template>
+  </div>
+</div>
