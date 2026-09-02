@@ -4,7 +4,16 @@
   <p *ngIf="loading && accounts.length === 0">Učitavanje naloga...</p>
   <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
 
-  <table *ngIf="accounts.length > 0" class="accounts-table">
+  <input
+    *ngIf="accounts.length > 0"
+    class="search-input"
+    type="text"
+    placeholder="Pretraga po korisničkom imenu ili e-mailu..."
+    [(ngModel)]="searchTerm"
+    (ngModelChange)="onSearchChange()"
+  />
+
+  <table *ngIf="pagedAccounts.length > 0" class="accounts-table">
     <thead>
       <tr>
         <th>Korisničko ime</th>
@@ -16,7 +25,7 @@
     </thead>
 
     <tbody>
-      <tr *ngFor="let account of accounts">
+      <tr *ngFor="let account of pagedAccounts">
         <td>{{ account.username }}</td>
         <td>{{ account.email }}</td>
         <td>{{ account.role }}</td>
@@ -25,18 +34,40 @@
             {{ account.isBlocked ? 'Blokiran' : 'Aktivan' }}
           </span>
         </td>
-        <td>
+        <td class="actions-cell">
           <button
             class="btn-block"
-            [disabled]="account.role?.toLowerCase() === 'admin' || account.isBlocked"
+            *ngIf="!account.isBlocked"
+            [disabled]="account.role?.toLowerCase() === 'admin'"
             (click)="blockAccount(account)"
           >
             Blokiraj
+          </button>
+          <button
+            class="btn-unblock"
+            *ngIf="account.isBlocked"
+            (click)="unblockAccount(account)"
+          >
+            Odblokiraj
+          </button>
+          <button
+            class="btn-delete"
+            [disabled]="account.role?.toLowerCase() === 'admin'"
+            (click)="deleteAccount(account)"
+          >
+            Obriši
           </button>
         </td>
       </tr>
     </tbody>
   </table>
 
+  <div class="pagination" *ngIf="filteredAccounts.length > pageSize">
+    <button class="btn-page" (click)="goToPage(page - 1)" [disabled]="page === 0">← Prethodna</button>
+    <span class="page-info">Strana {{ page + 1 }} od {{ totalPages }} ({{ filteredAccounts.length }} naloga)</span>
+    <button class="btn-page" (click)="goToPage(page + 1)" [disabled]="page + 1 >= totalPages">Sljedeća →</button>
+  </div>
+
   <p *ngIf="!loading && accounts.length === 0">Nema naloga za prikaz.</p>
+  <p *ngIf="!loading && accounts.length > 0 && filteredAccounts.length === 0">Nema naloga koji odgovaraju pretrazi.</p>
 </div>
