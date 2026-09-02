@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface Tour {
   id: string;
@@ -81,7 +82,7 @@ export interface TourDetailResponse {
 
 @Injectable({ providedIn: 'root' })
 export class TourService {
-  private apiUrl = 'http://localhost:8080';
+  private apiUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
 

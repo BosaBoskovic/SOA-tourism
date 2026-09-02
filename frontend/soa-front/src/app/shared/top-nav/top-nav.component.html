@@ -68,7 +68,7 @@
           Blog
         </a>
 
-        <a *ngIf="currentUser.role === 'admin'" (click)="menuOpen = false">
+        <a routerLink="/admin" *ngIf="currentUser.role === 'admin'" (click)="menuOpen = false">
           Administracija
         </a>
 

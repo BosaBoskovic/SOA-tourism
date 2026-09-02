@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface Recommendation {
   username: string;
@@ -9,37 +10,27 @@ export interface Recommendation {
 
 @Injectable({ providedIn: 'root' })
 export class FollowersService {
-  private apiUrl = 'http://localhost:8080/followers';
+  // Auth header comes from the global authInterceptorFn - no need to attach it per call here.
+  private apiUrl = `${environment.apiUrl}/followers`;
 
   constructor(private http: HttpClient) {}
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
-
-    return new HttpHeaders({
-      Authorization: `Bearer ${token}`
-    });
-  }
 
   follow(targetUsername: string): Observable<{ message: string; relation: any }> {
     return this.http.post<{ message: string; relation: any }>(
       `${this.apiUrl}/follow`,
-      { targetUsername },
-      { headers: this.getAuthHeaders() }
+      { targetUsername }
     );
   }
 
   unfollow(targetUsername: string): Observable<void> {
     return this.http.delete<void>(
-      `${this.apiUrl}/follow/${encodeURIComponent(targetUsername)}`,
-      { headers: this.getAuthHeaders() }
+      `${this.apiUrl}/follow/${encodeURIComponent(targetUsername)}`
     );
   }
 
   getFollowing(username: string): Observable<{ username: string; following: string[] }> {
     return this.http.get<{ username: string; following: string[] }>(
-      `${this.apiUrl}/following/${encodeURIComponent(username)}`,
-      { headers: this.getAuthHeaders() }
+      `${this.apiUrl}/following/${encodeURIComponent(username)}`
     );
   }
 
@@ -48,10 +39,7 @@ export class FollowersService {
       .set('followerUsername', followerUsername)
       .set('targetUsername', targetUsername);
 
-    return this.http.get<{ isFollowing: boolean }>(
-      `${this.apiUrl}/is-following`,
-      { params, headers: this.getAuthHeaders() }
-    );
+    return this.http.get<{ isFollowing: boolean }>(`${this.apiUrl}/is-following`, { params });
   }
 
   getRecommendations(username: string, limit = 6): Observable<{ username: string; recommendations: Recommendation[] }> {
@@ -59,7 +47,7 @@ export class FollowersService {
 
     return this.http.get<{ username: string; recommendations: Recommendation[] }>(
       `${this.apiUrl}/recommendations/${encodeURIComponent(username)}`,
-      { params, headers: this.getAuthHeaders() }
+      { params }
     );
   }
 }

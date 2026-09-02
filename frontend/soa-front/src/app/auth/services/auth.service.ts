@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 
 export interface LoginRequest {
   usernameOrEmail: string;
@@ -16,22 +17,24 @@ export interface RegisterRequest {
   role: string;
 }
 
+export interface AuthAccount {
+  username: string;
+  email: string;
+  role: string;
+}
+
 export interface AuthResponse {
   accessToken?: string;
   message: string;
-  account: {
-    username: string;
-    email: string;
-    role: string;
-  };
+  account: AuthAccount;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private apiGatewayUrl = 'http://localhost:8080';
-  private currentUserSubject = new BehaviorSubject<any>(null);
+  private apiGatewayUrl = environment.apiUrl;
+  private currentUserSubject = new BehaviorSubject<AuthAccount | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
   constructor(
@@ -43,32 +46,12 @@ export class AuthService {
 
   login(credentials: LoginRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.apiGatewayUrl}/stakeholders/login`, credentials)
-      .pipe(
-        tap(response => {
-          if (isPlatformBrowser(this.platformId)) {
-            if (response.accessToken) {
-              localStorage.setItem('token', response.accessToken);
-            }
-            localStorage.setItem('user', JSON.stringify(response.account));
-          }
-          this.currentUserSubject.next(response.account);
-        })
-      );
+      .pipe(tap(response => this.applySession(response)));
   }
 
   register(data: RegisterRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.apiGatewayUrl}/stakeholders/register`, data)
-      .pipe(
-        tap(response => {
-          if (isPlatformBrowser(this.platformId)) {
-            if (response.accessToken) {
-              localStorage.setItem('token', response.accessToken);
-            }
-            localStorage.setItem('user', JSON.stringify(response.account));
-          }
-          this.currentUserSubject.next(response.account);
-        })
-      );
+      .pipe(tap(response => this.applySession(response)));
   }
 
   logout(): void {
@@ -90,8 +73,31 @@ export class AuthService {
     return !!this.getToken();
   }
 
+  getCurrentUser(): AuthAccount | null {
+    return this.currentUserSubject.getValue();
+  }
+
+  // A response with no accessToken (shouldn't normally happen, but the
+  // backend contract does mark it optional) must NOT leave the app
+  // believing the user is logged in - every subsequent API call would go
+  // out with no Authorization header and just fail.
+  private applySession(response: AuthResponse): void {
+    if (!response.accessToken) {
+      return;
+    }
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('token', response.accessToken);
+      localStorage.setItem('user', JSON.stringify(response.account));
+    }
+    this.currentUserSubject.next(response.account);
+  }
+
   private loadUser(): void {
     if (isPlatformBrowser(this.platformId)) {
+      // A user record with no token is not a logged-in session.
+      if (!localStorage.getItem('token')) {
+        return;
+      }
       const userJson = localStorage.getItem('user');
       if (userJson) {
         try {

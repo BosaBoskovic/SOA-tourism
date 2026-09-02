@@ -75,11 +75,11 @@ export class TourCreateComponent implements AfterViewInit, OnDestroy {
     this.loading = true;
     this.error = '';
 
-    const user = this.authService['currentUserSubject'].getValue();
+    const user = this.authService.getCurrentUser();
 
     this.tourService.createTour({
       ...this.form.value,
-      authorId: user.username
+      authorId: user?.username
     }).subscribe({
       next: (tour) => {
         console.log('CREATED TOUR:', tour);

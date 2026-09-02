@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface ProfileResponse {
   username: string;
@@ -25,38 +26,22 @@ export interface UpdateProfileRequest {
 
 @Injectable({ providedIn: 'root' })
 export class ProfileService {
-  private apiUrl = 'http://localhost:8080/stakeholders/profile';
+  // Auth header comes from the global authInterceptorFn - no need to attach it per call here.
+  private apiUrl = `${environment.apiUrl}/stakeholders/profile`;
 
   constructor(private http: HttpClient) {}
 
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
-
-    return new HttpHeaders({
-      Authorization: `Bearer ${token}`
-    });
-  }
-
   getProfile(): Observable<{ profile: ProfileResponse }> {
-    return this.http.get<{ profile: ProfileResponse }>(this.apiUrl, {
-      headers: this.getAuthHeaders()
-    });
+    return this.http.get<{ profile: ProfileResponse }>(this.apiUrl);
   }
 
   updateProfile(data: UpdateProfileRequest): Observable<{ profile: ProfileResponse }> {
-    return this.http.put<{ profile: ProfileResponse }>(
-      this.apiUrl,
-      data,
-      {
-        headers: this.getAuthHeaders()
-      }
-    );
+    return this.http.put<{ profile: ProfileResponse }>(this.apiUrl, data);
   }
 
   getPublicProfile(username: string): Observable<{ profile: PublicProfileResponse }> {
     return this.http.get<{ profile: PublicProfileResponse }>(
-      `${this.apiUrl}/${encodeURIComponent(username)}`,
-      { headers: this.getAuthHeaders() }
+      `${this.apiUrl}/${encodeURIComponent(username)}`
     );
   }
 
@@ -75,8 +60,6 @@ export class ProfileService {
 
     const queryString = query.toString();
     const url = queryString ? `${this.apiUrl}/search?${queryString}` : `${this.apiUrl}/search`;
-    return this.http.get<{ profiles: PublicProfileResponse[] }>(url, {
-      headers: this.getAuthHeaders()
-    });
+    return this.http.get<{ profiles: PublicProfileResponse[] }>(url);
   }
 }

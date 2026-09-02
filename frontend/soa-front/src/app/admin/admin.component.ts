@@ -1,7 +1,7 @@
-import { Component, OnInit, NgZone, ChangeDetectorRef  } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-admin',
@@ -15,60 +15,46 @@ export class AdminComponent implements OnInit {
   loading = false;
   errorMessage = '';
 
-  private apiUrl = 'http://localhost:8080/stakeholders';
+  // Auth header comes from the global authInterceptorFn - no need to attach it per call here.
+  private apiUrl = `${environment.apiUrl}/stakeholders`;
 
- constructor(
-  private http: HttpClient,
-  private zone: NgZone,
-   private cdr: ChangeDetectorRef
-) {}
+  constructor(
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loadAccounts();
   }
 
-loadAccounts(): void {
-  console.log('Ucitavam naloge...');
-  this.loading = true;
-  this.errorMessage = '';
+  loadAccounts(): void {
+    this.loading = true;
+    this.errorMessage = '';
 
-  this.http.get<{ accounts: any[] }>(`${this.apiUrl}/accounts`, {
-    headers: this.getAuthHeaders()
-  }).subscribe({
-    next: response => {
-      console.log('Accounts response:', response);
+    this.http.get<{ accounts: any[] }>(`${this.apiUrl}/accounts`).subscribe({
+      next: response => {
+        this.accounts = response.accounts ?? [];
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.errorMessage = 'Greška pri učitavanju naloga.';
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
 
-      this.accounts = response.accounts ?? [];
-      this.loading = false;
-
-      console.log('Accounts posle setovanja:', this.accounts);
-      this.cdr.detectChanges();
-    },
-    error: err => {
-      console.log('Accounts error:', err);
-      this.errorMessage = 'Greška pri učitavanju naloga.';
-      this.loading = false;
-      this.cdr.detectChanges();
-    }
-  });
-}
-blockAccount(account: any): void {
-  this.http.patch(`${this.apiUrl}/accounts/${account.username}/block`, {}, {
-    headers: this.getAuthHeaders()
-  }).subscribe({
-    next: () => {
-      account.isBlocked = true;
-    },
-    error: err => {
-      console.log('Block error:', err);
-      this.errorMessage = 'Greška pri blokiranju naloga.';
-    }
-  });
-}
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
-    return new HttpHeaders({
-      Authorization: `Bearer ${token}`
+  blockAccount(account: any): void {
+    this.http.patch(`${this.apiUrl}/accounts/${account.username}/block`, {}).subscribe({
+      next: () => {
+        account.isBlocked = true;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.errorMessage = 'Greška pri blokiranju naloga.';
+        this.cdr.detectChanges();
+      }
     });
   }
 }
