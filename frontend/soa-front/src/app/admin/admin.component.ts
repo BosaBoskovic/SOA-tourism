@@ -5,11 +5,13 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../shared/toast/toast.service';
+import { SpinnerComponent } from '../shared/ui/spinner/spinner.component';
+import { EmptyStateComponent } from '../shared/ui/empty-state/empty-state.component';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SpinnerComponent, EmptyStateComponent],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.css'
 })

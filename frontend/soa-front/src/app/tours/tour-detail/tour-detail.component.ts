@@ -9,11 +9,12 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { UploadService } from '../../services/upload.service';
 import { ToastService } from '../../shared/toast/toast.service';
+import { SpinnerComponent } from '../../shared/ui/spinner/spinner.component';
 
 @Component({
   selector: 'app-tour-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, SpinnerComponent],
   templateUrl: './tour-detail.component.html',
   styleUrl: './tour-detail.component.css'
 })

@@ -5,11 +5,12 @@ import { RouterLink } from '@angular/router';
 import { ProfileService, ProfileResponse } from '../services/profile.service';
 import { UploadService } from '../services/upload.service';
 import { ToastService } from '../shared/toast/toast.service';
+import { SpinnerComponent } from '../shared/ui/spinner/spinner.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css'
 })

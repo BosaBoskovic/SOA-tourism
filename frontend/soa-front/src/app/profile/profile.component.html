@@ -2,7 +2,7 @@
   <div class="profile-card">
     <h2>Moj profil</h2>
 
-    <p *ngIf="loading">Učitavanje...</p>
+    <app-spinner *ngIf="loading"></app-spinner>
     <p *ngIf="error" class="alert-error">{{ error }}</p>
     <p *ngIf="success" class="alert-success">{{ success }}</p>
 

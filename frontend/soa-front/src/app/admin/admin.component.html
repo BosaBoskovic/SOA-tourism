@@ -1,7 +1,7 @@
 <div class="admin-card">
   <h2>Administracija korisnika</h2>
 
-  <p *ngIf="loading && accounts.length === 0">Učitavanje naloga...</p>
+  <app-spinner *ngIf="loading && accounts.length === 0" label="Učitavanje naloga..."></app-spinner>
   <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
 
   <input
@@ -68,6 +68,16 @@
     <button class="btn-page" (click)="goToPage(page + 1)" [disabled]="page + 1 >= totalPages">Sljedeća →</button>
   </div>
 
-  <p *ngIf="!loading && accounts.length === 0">Nema naloga za prikaz.</p>
-  <p *ngIf="!loading && accounts.length > 0 && filteredAccounts.length === 0">Nema naloga koji odgovaraju pretrazi.</p>
+  <app-empty-state
+    *ngIf="!loading && accounts.length === 0"
+    icon="👥"
+    title="Nema naloga"
+    message="Nema naloga za prikaz."
+  ></app-empty-state>
+  <app-empty-state
+    *ngIf="!loading && accounts.length > 0 && filteredAccounts.length === 0"
+    icon="🔍"
+    title="Nema rezultata"
+    message="Nema naloga koji odgovaraju pretrazi."
+  ></app-empty-state>
 </div>

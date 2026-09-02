@@ -9,11 +9,13 @@ import { ReviewService } from '../../services/review.service';
 import { CartService } from '../../services/cart.service';
 import { ToastService } from '../../shared/toast/toast.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
+import { SpinnerComponent } from '../../shared/ui/spinner/spinner.component';
+import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
 
 @Component({
   selector: 'app-tour-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, ReviewFormComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, ReviewFormComponent, SpinnerComponent, EmptyStateComponent],
   templateUrl: './tour-list.component.html',
   styleUrl: './tour-list.component.css'
 })

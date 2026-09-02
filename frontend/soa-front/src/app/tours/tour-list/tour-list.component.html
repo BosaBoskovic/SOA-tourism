@@ -40,15 +40,17 @@
     <button type="button" class="btn btn-outline" (click)="resetFilters()">Resetuj</button>
   </form>
 
-  <p *ngIf="loading">Učitavanje...</p>
+  <app-spinner *ngIf="loading"></app-spinner>
   <p *ngIf="error" class="error">{{ error }}</p>
 
-  <div *ngIf="!loading && tours.length === 0" class="empty-state">
-    {{ currentUser?.role === 'tourist'
+  <app-empty-state
+    *ngIf="!loading && tours.length === 0"
+    icon="🏔"
+    [title]="currentUser?.role === 'tourist' ? 'Nema dostupnih tura' : 'Još nema tura'"
+    [message]="currentUser?.role === 'tourist'
       ? 'Trenutno nema dostupnih tura.'
-      : 'Nemate još nijednu turu. Kreirajte prvu!'
-    }}
-  </div>
+      : 'Nemate još nijednu turu. Kreirajte prvu!'"
+  ></app-empty-state>
 
   <div class="tours-grid">
     <div *ngFor="let tour of tours" class="tour-card">
