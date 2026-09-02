@@ -6,6 +6,7 @@ import { ReviewService, Review } from '../../services/review.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { CartService } from '../../services/cart.service';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-tour-detail',
@@ -55,6 +56,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
+    private confirmDialogService: ConfirmDialogService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.kpForm = this.fb.group({
@@ -467,7 +469,12 @@ cancelEditKeyPoint(): void {
     });
 }
 
-  deleteKeyPoint(kp: KeyPoint): void {
+  async deleteKeyPoint(kp: KeyPoint): Promise<void> {
+  const confirmed = await this.confirmDialogService.confirm(
+    `Da li ste sigurni da želite da obrišete ključnu tačku "${kp.name}"?`
+  );
+  if (!confirmed) return;
+
   const nextKeyPoints = this.keyPoints.filter(k => k.id !== kp.id);
 
   this.calculateLengthKm(nextKeyPoints)

@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { TourService, Tour, KeyPoint } from '../../services/tour.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { FormsModule } from '@angular/forms';
+import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-tour-create',
@@ -39,6 +40,7 @@ export class TourCreateComponent implements AfterViewInit, OnDestroy {
     private router: Router,
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
+    private confirmDialogService: ConfirmDialogService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.form = this.fb.group({
@@ -280,8 +282,13 @@ export class TourCreateComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  deleteKeyPoint(kp: KeyPoint): void {
+  async deleteKeyPoint(kp: KeyPoint): Promise<void> {
     if (!this.createdTour) return;
+
+    const confirmed = await this.confirmDialogService.confirm(
+      `Da li ste sigurni da želite da obrišete ključnu tačku "${kp.name}"?`
+    );
+    if (!confirmed) return;
 
     const nextKeyPoints = this.keyPoints.filter(k => k.id !== kp.id);
 

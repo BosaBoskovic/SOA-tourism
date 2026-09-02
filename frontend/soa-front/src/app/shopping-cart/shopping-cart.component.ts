@@ -4,8 +4,9 @@ import { RouterLink } from '@angular/router';
 import { CartService, ShoppingCart, TourPurchaseToken, OrderItem } from '../services/cart.service';
 import { AuthService } from '../auth/services/auth.service';
 import { TourService } from '../services/tour.service';
-import { forkJoin, of } from 'rxjs';                     
-import { catchError } from 'rxjs/operators'; 
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 
 
 @Component({
@@ -31,7 +32,8 @@ export class ShoppingCartComponent implements OnInit {
     private authService: AuthService,
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
-    private tourService: TourService
+    private tourService: TourService,
+    private confirmDialogService: ConfirmDialogService
   ) {}
 
   ngOnInit(): void {
@@ -103,8 +105,11 @@ export class ShoppingCartComponent implements OnInit {
   }
 
   // Prima item.id (Guid) — ne tourId!
-  removeItem(itemId: string): void {
+  async removeItem(itemId: string): Promise<void> {
     if (!this.currentUser?.username) return;
+
+    const confirmed = await this.confirmDialogService.confirm('Ukloniti ovu turu iz korpe?');
+    if (!confirmed) return;
 
     this.cartService.removeFromCart(this.currentUser.username, itemId).subscribe({
       next: (cart) => {

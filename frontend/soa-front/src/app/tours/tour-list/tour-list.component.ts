@@ -6,6 +6,8 @@ import { AuthService } from '../../auth/services/auth.service';
 import { ReviewFormComponent } from '../../reviews/review-form/review-form.component';
 import { ReviewService } from '../../services/review.service';
 import { CartService } from '../../services/cart.service';
+import { ToastService } from '../../shared/toast/toast.service';
+import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-tour-list',
@@ -30,6 +32,8 @@ export class TourListComponent implements OnInit {
     private zone: NgZone,
     private reviewService: ReviewService,
     private cartService: CartService,
+    private toastService: ToastService,
+    private confirmDialogService: ConfirmDialogService,
   ) {}
 
   ngOnInit(): void {
@@ -88,7 +92,7 @@ export class TourListComponent implements OnInit {
         });
       },
       error: (err) => {
-        alert(err.error?.error || 'Greška pri dodavanju u korpu.');
+        this.toastService.error(err.error?.error || 'Greška pri dodavanju u korpu.');
       }
     });
   }
@@ -164,11 +168,11 @@ export class TourListComponent implements OnInit {
 
     this.reviewService.createReview(request).subscribe({
       next: () => {
-        alert('Recenzija je uspešno dodata.');
+        this.toastService.success('Recenzija je uspešno dodata.');
         this.selectedTourForReview = null;
       },
       error: (err) => {
-        alert(err.error?.error || 'Greška pri dodavanju recenzije.');
+        this.toastService.error(err.error?.error || 'Greška pri dodavanju recenzije.');
       }
     });
   }
@@ -180,25 +184,30 @@ export class TourListComponent implements OnInit {
           tour.status = updatedTour.status;
           this.cdr.detectChanges();
         });
-        alert('Tura je uspešno objavljena.');
+        this.toastService.success('Tura je uspešno objavljena.');
       },
       error: (err) => {
-        alert(err.error?.error || 'Greška pri objavljivanju ture.');
+        this.toastService.error(err.error?.error || 'Greška pri objavljivanju ture.');
       }
     });
   }
 
-  archiveTour(tour: Tour): void {
+  async archiveTour(tour: Tour): Promise<void> {
+    const confirmed = await this.confirmDialogService.confirm(
+      `Da li ste sigurni da želite da arhivirate turu "${tour.name}"? Više neće biti vidljiva turistima.`
+    );
+    if (!confirmed) return;
+
     this.tourService.archiveTour(tour.id).subscribe({
       next: (updatedTour) => {
         this.zone.run(() => {
           tour.status = updatedTour.status;
           this.cdr.detectChanges();
         });
-        alert('Tura je uspešno arhivirana.');
+        this.toastService.success('Tura je uspešno arhivirana.');
       },
       error: (err) => {
-        alert(err.error?.error || 'Greška pri arhiviranju ture.');
+        this.toastService.error(err.error?.error || 'Greška pri arhiviranju ture.');
       }
     });
   }
@@ -210,10 +219,10 @@ export class TourListComponent implements OnInit {
           tour.status = updatedTour.status;
           this.cdr.detectChanges();
         });
-        alert('Tura je uspešno aktivirana.');
+        this.toastService.success('Tura je uspešno aktivirana.');
       },
       error: (err) => {
-        alert(err.error?.error || 'Greška pri aktiviranju ture.');
+        this.toastService.error(err.error?.error || 'Greška pri aktiviranju ture.');
       }
     });
   }

@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, Output, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ToastService } from '../../shared/toast/toast.service';
 
 export interface ReviewRequest {
   rating: number;
@@ -23,7 +24,8 @@ export class ReviewFormComponent {
   @Output() submitReview = new EventEmitter<ReviewRequest>();
 
   constructor(
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private toastService: ToastService
   ) {}
 
   rating = 5;
@@ -58,7 +60,7 @@ export class ReviewFormComponent {
 
   submit(): void {
     if (!this.comment.trim() || !this.visitDate) {
-      alert('Popuni komentar i datum posete.');
+      this.toastService.error('Popuni komentar i datum posete.');
       return;
     }
 

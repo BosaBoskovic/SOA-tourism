@@ -3,12 +3,14 @@ import { NgIf } from '@angular/common';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { TopNavComponent } from './shared/top-nav/top-nav.component';
+import { ToastContainerComponent } from './shared/toast/toast-container.component';
+import { ConfirmDialogComponent } from './shared/confirm-dialog/confirm-dialog.component';
 
 const NAV_HIDDEN_ROUTES = ['/login', '/register'];
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, TopNavComponent, NgIf],
+  imports: [RouterOutlet, TopNavComponent, NgIf, ToastContainerComponent, ConfirmDialogComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

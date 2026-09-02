@@ -1,0 +1,12 @@
+<div class="toast-stack" *ngIf="(toastService.toasts$ | async)?.length">
+  <div
+    class="toast"
+    *ngFor="let toast of (toastService.toasts$ | async)"
+    [class.toast-success]="toast.type === 'success'"
+    [class.toast-error]="toast.type === 'error'"
+    [class.toast-info]="toast.type === 'info'"
+    (click)="toastService.dismiss(toast.id)"
+  >
+    {{ toast.message }}
+  </div>
+</div>
