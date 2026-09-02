@@ -24,7 +24,12 @@ func NewTourService(repo *repository.TourRepository, keyPointRepo *repository.Ke
 	}
 }
 
-func (s *TourService) Create(req *model.CreateTourRequest) (*model.Tour, error) {
+func (s *TourService) Create(req *model.CreateTourRequest, callerUsername, callerRole string) (*model.Tour, error) {
+	if callerRole != "guide" && callerRole != "admin" {
+		return nil, ErrForbidden
+	}
+	// The author is always the verified caller, never whatever the client sent.
+	req.AuthorID = callerUsername
 	if req.AuthorID == "" || req.Name == "" || req.Description == "" || req.Difficulty == "" {
 		return nil, errors.New("authorId, name, description and difficulty are required")
 	}
@@ -85,13 +90,24 @@ func (s *TourService) GetByAuthor(authorID string) ([]model.Tour, error) {
 	return tours, nil
 }
 
-func (s *TourService) Update(id string, req *model.UpdateTourRequest) (*model.Tour, error) {
+func (s *TourService) Update(id string, req *model.UpdateTourRequest, callerUsername, callerRole string) (*model.Tour, error) {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("invalid tour ID")
 	}
 	if err := validateDurations(req.Durations); err != nil {
 		return nil, err
+	}
+
+	existing, err := s.repo.FindByID(oid)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, errors.New("tour not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !isOwner(existing.AuthorID, callerUsername, callerRole) {
+		return nil, ErrForbidden
 	}
 
 	update := bson.M{
@@ -148,7 +164,7 @@ func (s *TourService) GetPublished() ([]model.TourPreview, error) {
 	return previews, nil
 }
 
-func (s *TourService) Publish(id string) (*model.Tour, error) {
+func (s *TourService) Publish(id string, callerUsername, callerRole string) (*model.Tour, error) {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("invalid tour ID")
@@ -160,6 +176,9 @@ func (s *TourService) Publish(id string) (*model.Tour, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	if !isOwner(tour.AuthorID, callerUsername, callerRole) {
+		return nil, ErrForbidden
 	}
 	if tour.Status != model.StatusDraft {
 		return nil, errors.New("tour is not in draft status")
@@ -192,7 +211,7 @@ func (s *TourService) Publish(id string) (*model.Tour, error) {
 	return s.repo.FindByID(oid)
 }
 
-func (s *TourService) Archive(id string) (*model.Tour, error) {
+func (s *TourService) Archive(id string, callerUsername, callerRole string) (*model.Tour, error) {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("invalid tour ID")
@@ -204,6 +223,9 @@ func (s *TourService) Archive(id string) (*model.Tour, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	if !isOwner(tour.AuthorID, callerUsername, callerRole) {
+		return nil, ErrForbidden
 	}
 	if tour.Status != model.StatusPublished {
 		return nil, errors.New("only published tours can be archived")
@@ -218,7 +240,7 @@ func (s *TourService) Archive(id string) (*model.Tour, error) {
 	return s.repo.FindByID(oid)
 }
 
-func (s *TourService) Activate(id string) (*model.Tour, error) {
+func (s *TourService) Activate(id string, callerUsername, callerRole string) (*model.Tour, error) {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("invalid tour ID")
@@ -230,6 +252,9 @@ func (s *TourService) Activate(id string) (*model.Tour, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	if !isOwner(tour.AuthorID, callerUsername, callerRole) {
+		return nil, ErrForbidden
 	}
 	if tour.Status != model.StatusArchived {
 		return nil, errors.New("only archived tours can be activated")

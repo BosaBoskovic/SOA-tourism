@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"tours/auth"
 	"tours/handler"
 	"tours/messaging"
 	"tours/repository"
@@ -135,7 +136,7 @@ func main() {
 	// Services
 	tourService := service.NewTourService(tourRepo, keyPointRepo, purchaseRepo)
 	keyPointService := service.NewKeyPointService(keyPointRepo, tourRepo)
-	reviewService := service.NewReviewService(reviewRepo, tourRepo)
+	reviewService := service.NewReviewService(reviewRepo, tourRepo, purchaseRepo, execRepo)
 	touristPositionService := service.NewTouristPositionService(touristPositionRepo)
 	execService := service.NewTourExecutionService(execRepo, tourRepo, keyPointRepo, purchaseRepo, touristPositionRepo,)
 
@@ -146,9 +147,16 @@ func main() {
 	touristPositionHandler := handler.NewTouristPositionHandler(touristPositionService)
 	execHandler := handler.NewTourExecutionHandler(execService)
 
+	verifier, err := auth.NewVerifier()
+	if err != nil {
+		logger.Error("auth verifier init failed", "error", err)
+		log.Fatal(err)
+	}
+
 	r := mux.NewRouter()
     r.Use(otelmux.Middleware("tours-service"))
     r.Use(observabilityMiddleware("tours-service", logger))
+    r.Use(verifier.Middleware)
 
     r.Handle("/metrics", metricsHandler()).Methods(http.MethodGet)
     r.HandleFunc("/health", healthHandler("tours-service", client)).Methods(http.MethodGet)

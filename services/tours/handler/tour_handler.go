@@ -19,15 +19,20 @@ func NewTourHandler(service *service.TourService) *TourHandler {
 
 // POST /tours
 func (h *TourHandler) Create(w http.ResponseWriter, r *http.Request) {
+	id, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
+
 	var req model.CreateTourRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	tour, err := h.service.Create(&req)
+	tour, err := h.service.Create(&req, id.Username, id.Role)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		respondServiceError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -63,7 +68,11 @@ func (h *TourHandler) GetByAuthor(w http.ResponseWriter, r *http.Request) {
 
 // PUT /tours/{id}
 func (h *TourHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	tourID := mux.Vars(r)["id"]
 
 	var req model.UpdateTourRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -71,9 +80,9 @@ func (h *TourHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tour, err := h.service.Update(id, &req)
+	tour, err := h.service.Update(tourID, &req, caller.Username, caller.Role)
 	if err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
+		respondServiceError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -93,11 +102,15 @@ func (h *TourHandler) GetPublished(w http.ResponseWriter, r *http.Request) {
 
 // PUT /tours/{id}/publish
 func (h *TourHandler) Publish(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	tourID := mux.Vars(r)["id"]
 
-	tour, err := h.service.Publish(id)
+	tour, err := h.service.Publish(tourID, caller.Username, caller.Role)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		respondServiceError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -106,11 +119,15 @@ func (h *TourHandler) Publish(w http.ResponseWriter, r *http.Request) {
 
 // PUT /tours/{id}/archive
 func (h *TourHandler) Archive(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	tourID := mux.Vars(r)["id"]
 
-	tour, err := h.service.Archive(id)
+	tour, err := h.service.Archive(tourID, caller.Username, caller.Role)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		respondServiceError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -119,11 +136,15 @@ func (h *TourHandler) Archive(w http.ResponseWriter, r *http.Request) {
 
 // PUT /tours/{id}/activate
 func (h *TourHandler) Activate(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	tourID := mux.Vars(r)["id"]
 
-	tour, err := h.service.Activate(id)
+	tour, err := h.service.Activate(tourID, caller.Username, caller.Role)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		respondServiceError(w, err, http.StatusBadRequest)
 		return
 	}
 

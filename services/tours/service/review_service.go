@@ -11,15 +11,20 @@ import (
 )
 
 type ReviewService struct {
-	repo     *repository.ReviewRepository
-	tourRepo *repository.TourRepository
+	repo         *repository.ReviewRepository
+	tourRepo     *repository.TourRepository
+	purchaseRepo *repository.PurchaseRepository
+	execRepo     *repository.TourExecutionRepository
 }
 
-func NewReviewService(repo *repository.ReviewRepository, tourRepo *repository.TourRepository) *ReviewService {
-	return &ReviewService{repo: repo, tourRepo: tourRepo}
+func NewReviewService(repo *repository.ReviewRepository, tourRepo *repository.TourRepository, purchaseRepo *repository.PurchaseRepository, execRepo *repository.TourExecutionRepository) *ReviewService {
+	return &ReviewService{repo: repo, tourRepo: tourRepo, purchaseRepo: purchaseRepo, execRepo: execRepo}
 }
 
-func (s *ReviewService) Create(req *model.CreateReviewRequest) (*model.Review, error) {
+// Create adds a review from the verified caller. touristName is a display
+// name only (not an identity) - it still comes from the request, but
+// touristId is always the verified caller, never client-supplied.
+func (s *ReviewService) Create(req *model.CreateReviewRequest, callerUsername string) (*model.Review, error) {
 	tourOID, err := bson.ObjectIDFromHex(req.TourID)
 	if err != nil {
 		return nil, errors.New("invalid tourId")
@@ -28,6 +33,7 @@ func (s *ReviewService) Create(req *model.CreateReviewRequest) (*model.Review, e
 	if req.Rating < 1 || req.Rating > 5 {
 		return nil, errors.New("rating must be between 1 and 5")
 	}
+	req.TouristID = callerUsername
 	if req.TouristID == "" || req.TouristName == "" {
 		return nil, errors.New("touristId and touristName are required")
 	}
@@ -43,6 +49,21 @@ func (s *ReviewService) Create(req *model.CreateReviewRequest) (*model.Review, e
 			return nil, errors.New("tour not found")
 		}
 		return nil, err
+	}
+
+	// Samo turisti koji su kupili ili odradili turu mogu ostaviti recenziju
+	purchased, err := s.purchaseRepo.HasToken(req.TouristID, req.TourID)
+	if err != nil {
+		return nil, err
+	}
+	if !purchased {
+		executed, err := s.execRepo.ExistsByTouristAndTour(req.TouristID, tourOID)
+		if err != nil {
+			return nil, err
+		}
+		if !executed {
+			return nil, ErrForbidden
+		}
 	}
 
 	// Turista moze ostaviti samo jednu recenziju po turi
@@ -106,10 +127,21 @@ func (s *ReviewService) GetByTour(tourID string) ([]model.Review, error) {
 	return reviews, nil
 }
 
-func (s *ReviewService) Delete(id string) error {
+func (s *ReviewService) Delete(id string, callerUsername, callerRole string) error {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return errors.New("invalid review ID")
+	}
+
+	review, err := s.repo.FindByID(oid)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return errors.New("review not found")
+	}
+	if err != nil {
+		return err
+	}
+	if !isOwner(review.TouristID, callerUsername, callerRole) {
+		return ErrForbidden
 	}
 
 	err = s.repo.Delete(oid)

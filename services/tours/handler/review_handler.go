@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"tours/model"
 	"tours/service"
@@ -19,14 +20,23 @@ func NewReviewHandler(service *service.ReviewService) *ReviewHandler {
 
 // POST /reviews
 func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
+
 	var req model.CreateReviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	review, err := h.service.Create(&req)
+	review, err := h.service.Create(&req, caller.Username)
 	if err != nil {
+		if errors.Is(err, service.ErrForbidden) {
+			respondError(w, http.StatusForbidden, "Only tourists who purchased or completed this tour can review it")
+			return
+		}
 		status := http.StatusBadRequest
 		if err.Error() == "tourist has already reviewed this tour" {
 			status = http.StatusConflict
@@ -69,10 +79,14 @@ func (h *ReviewHandler) GetByTour(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /reviews/{id}
 func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
 	id := mux.Vars(r)["id"]
 
-	if err := h.service.Delete(id); err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
+	if err := h.service.Delete(id, caller.Username, caller.Role); err != nil {
+		respondServiceError(w, err, http.StatusNotFound)
 		return
 	}
 

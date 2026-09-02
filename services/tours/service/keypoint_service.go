@@ -19,7 +19,7 @@ func NewKeyPointService(repo *repository.KeyPointRepository, tourRepo *repositor
 	return &KeyPointService{repo: repo, tourRepo: tourRepo}
 }
 
-func (s *KeyPointService) Create(req *model.CreateKeyPointRequest) (*model.KeyPoint, error) {
+func (s *KeyPointService) Create(req *model.CreateKeyPointRequest, callerUsername, callerRole string) (*model.KeyPoint, error) {
 	tourOID, err := bson.ObjectIDFromHex(req.TourID)
 	if err != nil {
 		return nil, errors.New("invalid tourId")
@@ -28,7 +28,7 @@ func (s *KeyPointService) Create(req *model.CreateKeyPointRequest) (*model.KeyPo
 	if req.Name == "" {
 		return nil, errors.New("name is required")
 	}
-	if req.Latitude == 0 || req.Longitude == 0 {
+	if req.Latitude == 0 && req.Longitude == 0 {
 		return nil, errors.New("latitude and longitude are required")
 	}
 
@@ -39,6 +39,9 @@ func (s *KeyPointService) Create(req *model.CreateKeyPointRequest) (*model.KeyPo
 			return nil, errors.New("tour not found")
 		}
 		return nil, err
+	}
+	if !isOwner(tour.AuthorID, callerUsername, callerRole) {
+		return nil, ErrForbidden
 	}
 	if tour.Status != model.StatusDraft {
 		return nil, errors.New("key points can be managed only while tour is in draft status")
@@ -94,7 +97,7 @@ func (s *KeyPointService) GetByTour(tourID string) ([]model.KeyPoint, error) {
 	return kps, nil
 }
 
-func (s *KeyPointService) Update(id string, req *model.UpdateKeyPointRequest) (*model.KeyPoint, error) {
+func (s *KeyPointService) Update(id string, req *model.UpdateKeyPointRequest, callerUsername, callerRole string) (*model.KeyPoint, error) {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("invalid key point ID")
@@ -114,6 +117,9 @@ func (s *KeyPointService) Update(id string, req *model.UpdateKeyPointRequest) (*
 	}
 	if err != nil {
 		return nil, err
+	}
+	if !isOwner(tour.AuthorID, callerUsername, callerRole) {
+		return nil, ErrForbidden
 	}
 	if tour.Status != model.StatusDraft {
 		return nil, errors.New("key points can be managed only while tour is in draft status")
@@ -147,7 +153,7 @@ func (s *KeyPointService) Update(id string, req *model.UpdateKeyPointRequest) (*
 	return updated, nil
 }
 
-func (s *KeyPointService) Delete(id string, lengthKm *float64) error {
+func (s *KeyPointService) Delete(id string, lengthKm *float64, callerUsername, callerRole string) error {
 	oid, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return errors.New("invalid key point ID")
@@ -167,6 +173,9 @@ func (s *KeyPointService) Delete(id string, lengthKm *float64) error {
 	}
 	if err != nil {
 		return err
+	}
+	if !isOwner(tour.AuthorID, callerUsername, callerRole) {
+		return ErrForbidden
 	}
 	if tour.Status != model.StatusDraft {
 		return errors.New("key points can be managed only while tour is in draft status")

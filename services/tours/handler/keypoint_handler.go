@@ -20,15 +20,20 @@ func NewKeyPointHandler(service *service.KeyPointService) *KeyPointHandler {
 
 // POST /keypoints
 func (h *KeyPointHandler) Create(w http.ResponseWriter, r *http.Request) {
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
+
 	var req model.CreateKeyPointRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	kp, err := h.service.Create(&req)
+	kp, err := h.service.Create(&req, caller.Username, caller.Role)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		respondServiceError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -63,6 +68,10 @@ func (h *KeyPointHandler) GetByTour(w http.ResponseWriter, r *http.Request) {
 
 // PUT /keypoints/{id}
 func (h *KeyPointHandler) Update(w http.ResponseWriter, r *http.Request) {
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
 	id := mux.Vars(r)["id"]
 
 	var req model.UpdateKeyPointRequest
@@ -71,9 +80,9 @@ func (h *KeyPointHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	kp, err := h.service.Update(id, &req)
+	kp, err := h.service.Update(id, &req, caller.Username, caller.Role)
 	if err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
+		respondServiceError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -82,6 +91,10 @@ func (h *KeyPointHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /keypoints/{id}
 func (h *KeyPointHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	caller, ok := requireIdentity(w, r)
+	if !ok {
+		return
+	}
 	id := mux.Vars(r)["id"]
 	var lengthKm *float64
 	if lengthParam := r.URL.Query().Get("lengthKm"); lengthParam != "" {
@@ -90,8 +103,8 @@ func (h *KeyPointHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := h.service.Delete(id, lengthKm); err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
+	if err := h.service.Delete(id, lengthKm, caller.Username, caller.Role); err != nil {
+		respondServiceError(w, err, http.StatusNotFound)
 		return
 	}
 

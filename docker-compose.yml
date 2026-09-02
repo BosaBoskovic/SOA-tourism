@@ -160,6 +160,7 @@ services:
       TOURS_GRPC_PORT: 9093
       PAYMENTS_URL: http://soa-payments:8086
       RABBITMQ_HOST: rabbitmq
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: tours-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
