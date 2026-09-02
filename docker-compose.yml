@@ -91,6 +91,7 @@ services:
       MONGODB_URI: mongodb://soa-mongodb-blog:27017/blogdb
       MONGODB_DATABASE: blogdb
       FOLLOWER_SERVICE_URL: http://soa-followers:8084
+      STAKEHOLDERS_URL: http://soa-stakeholders:8081
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: blog-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
@@ -120,6 +121,7 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password
       NEO4J_DATABASE: neo4j
+      STAKEHOLDERS_URL: http://soa-stakeholders:8081
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: followers-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
@@ -162,6 +164,7 @@ services:
       PORT: 8085
       TOURS_GRPC_PORT: 9093
       PAYMENTS_URL: http://soa-payments:8086
+      STAKEHOLDERS_URL: http://soa-stakeholders:8081
       RABBITMQ_HOST: rabbitmq
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: tours-service

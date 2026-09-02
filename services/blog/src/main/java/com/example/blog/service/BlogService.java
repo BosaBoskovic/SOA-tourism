@@ -1,6 +1,7 @@
 package com.example.blog.service;
 
 import com.example.blog.client.FollowerClient;
+import com.example.blog.client.NotificationClient;
 import com.example.blog.exception.BlogAccessDeniedException;
 import com.example.blog.exception.BlogNotFoundException;
 import com.example.blog.model.Blog;
@@ -25,6 +26,7 @@ public class BlogService{
 
     private final BlogRepository blogRepository;
     private final FollowerClient followerClient;
+    private final NotificationClient notificationClient;
 
     private final Parser markdownParser = Parser.builder().build();
     private final HtmlRenderer htmlRenderer = HtmlRenderer.builder().build();
@@ -85,7 +87,9 @@ public class BlogService{
         comment.setText(text);
 
         blog.getComments().add(comment);
-        return blogRepository.save(blog);
+        Blog saved = blogRepository.save(blog);
+        notificationClient.notifyNewComment(blog.getAuthorUsername(), authorUsername);
+        return saved;
     }
 
     public Blog editComment(String blogId, String commentId, String username, String newText){

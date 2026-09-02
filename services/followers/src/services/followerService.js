@@ -119,6 +119,26 @@ async function getFollowing(userUsername) {
   }
 }
 
+// getFollowers is the inverse of getFollowing: who follows userUsername,
+// rather than who userUsername follows.
+async function getFollowers(userUsername) {
+  const session = driver.session({ database: config.neo4jDatabase });
+  try {
+    const result = await session.run(
+      `
+      MATCH (follower:User)-[:FOLLOWS]->(:User {username: $userUsername})
+      RETURN follower.username AS username
+      ORDER BY username
+      `,
+      { userUsername }
+    );
+
+    return result.records.map((record) => record.get("username"));
+  } finally {
+    await session.close();
+  }
+}
+
 async function getVisibleAuthors(userUsername) {
   const following = await getFollowing(userUsername);
   const all = [userUsername, ...following];
@@ -156,6 +176,7 @@ module.exports = {
   unfollowUser,
   isFollowing,
   getFollowing,
+  getFollowers,
   getVisibleAuthors,
   getRecommendations,
 };

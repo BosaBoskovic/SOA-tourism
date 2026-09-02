@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 	"tours/model"
+	"tours/notify"
 	"tours/repository"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -44,7 +45,8 @@ func (s *ReviewService) Create(req *model.CreateReviewRequest, callerUsername st
 	}
 
 	// Proveri da tura postoji
-	if _, err := s.tourRepo.FindByID(tourOID); err != nil {
+	tour, err := s.tourRepo.FindByID(tourOID)
+	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, errors.New("tour not found")
 		}
@@ -95,6 +97,7 @@ func (s *ReviewService) Create(req *model.CreateReviewRequest, callerUsername st
 	if err := s.repo.Create(review); err != nil {
 		return nil, err
 	}
+	notify.NewReview(tour.AuthorID, req.TouristID)
 	return review, nil
 }
 

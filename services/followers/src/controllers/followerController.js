@@ -1,5 +1,6 @@
 const followerService = require("../services/followerService");
 const { requireActor } = require("../middleware/auth");
+const { notifyNewFollower } = require("../services/notifier");
 
 const MIN_RECOMMENDATIONS_LIMIT = 1;
 const MAX_RECOMMENDATIONS_LIMIT = 100;
@@ -18,6 +19,9 @@ async function follow(req, res) {
   }
 
   const relation = await followerService.followUser(actorUsername, targetUsername);
+  if (!relation.alreadyFollowing) {
+    notifyNewFollower(actorUsername, targetUsername); // fire-and-forget
+  }
   res.status(relation.alreadyFollowing ? 200 : 201).json({
     message: relation.alreadyFollowing ? "Vec pratite ovog korisnika" : "Uspesno pracenje",
     relation,
@@ -53,6 +57,21 @@ async function following(req, res) {
 
   const users = await followerService.getFollowing(username);
   res.json({ username, following: users });
+}
+
+async function followers(req, res) {
+  if (!requireActor(req, res)) {
+    return;
+  }
+
+  const username = (req.params.username || "").trim();
+  if (!username) {
+    res.status(400).json({ error: "username je obavezan" });
+    return;
+  }
+
+  const users = await followerService.getFollowers(username);
+  res.json({ username, followers: users });
 }
 
 // isFollowing and visibleAuthors are also called service-to-service by blog
@@ -109,6 +128,7 @@ module.exports = {
   follow,
   unfollow,
   following,
+  followers,
   isFollowing,
   visibleAuthors,
   recommendations,

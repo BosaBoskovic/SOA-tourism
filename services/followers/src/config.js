@@ -4,6 +4,7 @@ const config = {
   neo4jUser: process.env.NEO4J_USER || "neo4j",
   neo4jPassword: process.env.NEO4J_PASSWORD || "password",
   neo4jDatabase: process.env.NEO4J_DATABASE || "neo4j",
+  stakeholdersUrl: process.env.STAKEHOLDERS_URL || "http://localhost:8081",
 };
 
 module.exports = config;

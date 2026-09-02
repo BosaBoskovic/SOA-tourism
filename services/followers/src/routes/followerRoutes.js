@@ -7,6 +7,7 @@ const router = express.Router();
 router.post("/follow", asyncHandler(controller.follow));
 router.delete("/follow/:targetUsername", asyncHandler(controller.unfollow));
 router.get("/following/:username", asyncHandler(controller.following));
+router.get("/followers/:username", asyncHandler(controller.followers));
 router.get("/is-following", asyncHandler(controller.isFollowing));
 router.get("/visible-authors/:username", asyncHandler(controller.visibleAuthors));
 router.get("/recommendations/:username", asyncHandler(controller.recommendations));
