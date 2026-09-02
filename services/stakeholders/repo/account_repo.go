@@ -242,3 +242,100 @@ func (r *AccountRepo) BlockAccount(ctx context.Context, username string) error {
 	})
 	return err
 }
+
+// UnblockAccount is the inverse of BlockAccount.
+func (r *AccountRepo) UnblockAccount(ctx context.Context, username string) error {
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{DatabaseName: r.database})
+	defer func() {
+		if err := session.Close(ctx); err != nil {
+			log.Printf("cannot close neo4j session: %v", err)
+		}
+	}()
+
+	result, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		res, err := tx.Run(ctx,
+			`MATCH (u:Account)
+			 WHERE toLower(u.username) = toLower($username)
+			 SET u.isBlocked = false
+			 RETURN count(u) AS total`,
+			map[string]any{"username": username},
+		)
+		if err != nil {
+			return nil, err
+		}
+		record, err := res.Single(ctx)
+		if err != nil {
+			return nil, err
+		}
+		total, _ := record.Get("total")
+		count, _ := total.(int64)
+		return count > 0, nil
+	})
+	if err != nil {
+		return err
+	}
+	if !result.(bool) {
+		return errors.New("account_not_found")
+	}
+	return nil
+}
+
+// DeleteAccount permanently removes an account (admin-only). Refuses to
+// delete an admin account, same guard as BlockAccount.
+func (r *AccountRepo) DeleteAccount(ctx context.Context, username string) error {
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{DatabaseName: r.database})
+	defer func() {
+		if err := session.Close(ctx); err != nil {
+			log.Printf("cannot close neo4j session: %v", err)
+		}
+	}()
+
+	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		res, err := tx.Run(ctx,
+			`MATCH (u:Account) WHERE toLower(u.username) = toLower($username) RETURN u.role AS role LIMIT 1`,
+			map[string]any{"username": username},
+		)
+		if err != nil {
+			return nil, err
+		}
+		records, err := res.Collect(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(records) == 0 {
+			return nil, errors.New("account_not_found")
+		}
+		if asString(mustGet(records[0], "role")) == "admin" {
+			return nil, errors.New("cannot_delete_admin")
+		}
+
+		_, err = tx.Run(ctx,
+			`MATCH (u:Account) WHERE toLower(u.username) = toLower($username) DETACH DELETE u`,
+			map[string]any{"username": username},
+		)
+		return nil, err
+	})
+	return err
+}
+
+// SetPasswordHash overwrites the stored password hash (used by change
+// password and password reset).
+func (r *AccountRepo) SetPasswordHash(ctx context.Context, username, passwordHash string) error {
+	session := r.driver.NewSession(ctx, neo4j.SessionConfig{DatabaseName: r.database})
+	defer func() {
+		if err := session.Close(ctx); err != nil {
+			log.Printf("cannot close neo4j session: %v", err)
+		}
+	}()
+
+	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		_, err := tx.Run(ctx,
+			`MATCH (u:Account)
+			 WHERE toLower(u.username) = toLower($username)
+			 SET u.passwordHash = $passwordHash`,
+			map[string]any{"username": username, "passwordHash": passwordHash},
+		)
+		return nil, err
+	})
+	return err
+}

@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -257,6 +260,12 @@ func main() {
     blogsGrpcClient := blogsv1.NewBlogsServiceClient(blogsGrpcConn)
 
 	// --- Stakeholders servis ---
+	// Login is proxied to stakeholders' own REST handler (not gRPC): the
+	// response now includes a refreshToken, and the gRPC LoginResponse
+	// message has no such field - regenerating the proto isn't possible
+	// without a protoc/buf toolchain in this environment. Proxying also
+	// means stakeholders' own status codes/error bodies pass straight
+	// through instead of needing a gRPC-status translation table here.
 	mux.HandleFunc("/stakeholders/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "Metod nije dozvoljen"})
@@ -277,54 +286,16 @@ func main() {
 			usernameOrEmail = strings.TrimSpace(reqPayload.UsernameOrEmailAlt)
 		}
 
-		req := stakeholdersv1.LoginRequest{
-			UsernameOrEmail: usernameOrEmail,
-			Password:        reqPayload.Password,
-		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-		defer cancel()
-		resp, err := stakeholdersGrpcClient.Login(ctx, &req)
-		if err != nil {
-			st, ok := status.FromError(err)
-			if !ok {
-				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri prijavi"})
-				return
-			}
-			switch st.Code() {
-			case codes.InvalidArgument:
-				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Neispravan zahtev"})
-			case codes.Unauthenticated:
-				if st.Message() == "invalid_credentials" {
-					writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Pogresni kredencijali"})
-					return
-				}
-				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Neispravan zahtev"})
-			case codes.PermissionDenied:
-				writeJSON(w, http.StatusForbidden, map[string]any{"error": "Nalog je blokiran"})
-			case codes.ResourceExhausted:
-				writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "Previse pokusaja prijave, pokusajte ponovo kasnije"})
-			default:
-				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri prijavi"})
-			}
-			return
-		}
-
-		accountPayload := map[string]any{}
-		if resp.Account != nil {
-			accountPayload["username"] = resp.Account.Username
-			accountPayload["email"] = resp.Account.Email
-			accountPayload["role"] = resp.Account.Role
-		}
-
-		writeJSON(w, http.StatusOK, map[string]any{
-			"message":     "Uspesna prijava",
-			"accessToken": resp.AccessToken,
-			"tokenType":   resp.TokenType,
-			"expiresIn":   resp.ExpiresIn,
-			"expiresAt":   resp.ExpiresAt,
-			"account":     accountPayload,
+		body, _ := json.Marshal(map[string]string{
+			"usernameOrEmail": usernameOrEmail,
+			"password":        reqPayload.Password,
 		})
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
+		r.Header.Set("Content-Length", strconv.Itoa(len(body)))
+		r.Header.Set("Content-Type", "application/json")
+		r.URL.Path = "/stakeholders/login"
+		stakeholdersProxy.ServeHTTP(w, r)
 	})
 	mux.HandleFunc("/stakeholders/profile", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

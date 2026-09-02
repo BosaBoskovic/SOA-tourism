@@ -105,14 +105,19 @@ func main() {
 	}
 
 	profileRepo := repo.NewProfileRepo(driver, neo4jDatabase)
+	tokenRepo := repo.NewTokenRepo(driver, neo4jDatabase)
+	notificationRepo := repo.NewNotificationRepo(driver, neo4jDatabase)
 
 	accountRepo := repo.NewAccountRepo(driver, neo4jDatabase)
 	seedAdmin(accountRepo)
-	authService := service.NewAuthService(accountRepo, profileRepo, []byte(jwtSecretRaw))
+	authService := service.NewAuthService(accountRepo, profileRepo, tokenRepo, []byte(jwtSecretRaw))
 	authHandler := handler.NewAuthHandler(authService)
 
 	profileService := service.NewProfileService(profileRepo)
 	profileHandler := handler.NewProfileHandler(profileService, authService)
+
+	notificationService := service.NewNotificationService(notificationRepo)
+	notificationHandler := handler.NewNotificationHandler(notificationService, authService)
 
 	if err = authService.EnsureUniqueConstraints(ctx); err != nil {
 		log.Fatalf("cannot create neo4j constraints: %v", err)
@@ -134,6 +139,7 @@ func main() {
 	r.GET("/metrics", metricsHandler())
 	authHandler.RegisterRoutes(r)
 	profileHandler.RegisterRoutes(r)
+	notificationHandler.RegisterRoutes(r)
 
 	logger.Info("stakeholders service starting", "port", 8081, "grpc_port", grpcPort)
 	r.Run(":8081")

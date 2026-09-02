@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"strings"
-	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -13,7 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	stakeholdersv1 "soa-tourism-proto/stakeholders/v1"
-	"stakeholders/model"
 	"stakeholders/service"
 )
 
@@ -28,42 +26,13 @@ func NewStakeholdersGrpcServer(authSvc *service.AuthService, profileSvc *service
 	return &StakeholdersGrpcServer{authSvc: authSvc, profileSvc: profileSvc}
 }
 
-func (s *StakeholdersGrpcServer) Login(ctx context.Context, req *stakeholdersv1.LoginRequest) (*stakeholdersv1.LoginResponse, error) {
-	usernameOrEmail := strings.TrimSpace(req.UsernameOrEmail)
-	password := strings.TrimSpace(req.Password)
-	if usernameOrEmail == "" || password == "" {
-		return nil, status.Error(codes.InvalidArgument, "invalid_request")
-	}
-
-	token, expiresAt, acc, err := s.authSvc.Login(ctx, model.LoginRequest{
-		UsernameOrEmail: usernameOrEmail,
-		Password:        password,
-	})
-	if err != nil {
-		switch err.Error() {
-		case "invalid_credentials":
-			return nil, status.Error(codes.Unauthenticated, "invalid_credentials")
-		case "account_blocked":
-			return nil, status.Error(codes.PermissionDenied, "account_blocked")
-		case "too_many_attempts":
-			return nil, status.Error(codes.ResourceExhausted, "too_many_attempts")
-		default:
-			return nil, status.Error(codes.Internal, "login_failed")
-		}
-	}
-
-	return &stakeholdersv1.LoginResponse{
-		AccessToken: token,
-		TokenType:   "Bearer",
-		ExpiresIn:   int64((15 * time.Minute).Seconds()),
-		ExpiresAt:   expiresAt.Format(time.RFC3339),
-		Account: &stakeholdersv1.AccountInfo{
-			Username: acc.Username,
-			Email:    acc.Email,
-			Role:     acc.Role,
-		},
-	}, nil
-}
+// Login is intentionally not implemented here anymore (falls through to
+// UnimplementedStakeholdersServiceServer, which returns a clean
+// "unimplemented" gRPC error): the gateway now proxies /stakeholders/login
+// straight to this service's own REST endpoint instead of calling this RPC,
+// because the login response needs to carry a refreshToken and the
+// LoginResponse proto message has no such field - regenerating it isn't
+// possible without a protoc/buf toolchain in this environment.
 
 func (s *StakeholdersGrpcServer) GetProfile(ctx context.Context, req *stakeholdersv1.GetProfileRequest) (*stakeholdersv1.GetProfileResponse, error) {
 	token := strings.TrimSpace(req.AccessToken)

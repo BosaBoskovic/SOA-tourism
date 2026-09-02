@@ -29,3 +29,21 @@ type Account struct {
 	IsBlocked    bool
 	PasswordHash string
 }
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" binding:"required"`
+	NewPassword     string `json:"newPassword" binding:"required,min=8,max=100"`
+}
+
+type RequestPasswordResetRequest struct {
+	UsernameOrEmail string `json:"usernameOrEmail" binding:"required"`
+}
+
+type ConfirmPasswordResetRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required,min=8,max=100"`
+}
