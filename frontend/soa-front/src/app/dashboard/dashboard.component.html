@@ -29,11 +29,78 @@
           <p>Aktivan nalog</p>
         </div>
 
+        <div class="floating-card card-one" *ngIf="currentUser?.role === 'tourist'">🥾 {{ activeExecutionsCount }} aktivnih tura</div>
+        <div class="floating-card card-two" *ngIf="currentUser?.role === 'tourist'">🎟 {{ purchasedToursCount }} kupljenih</div>
 
+        <div class="floating-card card-one" *ngIf="currentUser?.role === 'guide'">🌍 {{ myToursCount }} tura</div>
+        <div class="floating-card card-two" *ngIf="currentUser?.role === 'guide'">💰 {{ totalRevenue }} coins</div>
 
-        <div class="floating-card card-one">🌍 Tours</div>
-        <div class="floating-card card-two">📍 Points</div>
-        <div class="floating-card card-three">⭐ Reviews</div>
+        <div class="floating-card card-one" *ngIf="currentUser?.role === 'admin'">👥 {{ totalAccounts }} naloga</div>
+        <div class="floating-card card-two" *ngIf="currentUser?.role === 'admin'">🚫 {{ blockedAccounts }} blokirano</div>
+
+        <div class="floating-card card-three">🔔 {{ unreadNotifications }} novih obavještenja</div>
+      </div>
+    </section>
+
+    <!-- ── WIDGETI ────────────────────────────────────────────── -->
+    <section class="widgets-grid">
+      <ng-container *ngIf="currentUser?.role === 'tourist'">
+        <div class="widget-card" routerLink="/my-executions">
+          <span class="widget-icon">🥾</span>
+          <div>
+            <strong>{{ activeExecutionsCount }}</strong>
+            <p>Aktivnih izvršavanja tura</p>
+          </div>
+        </div>
+        <div class="widget-card" routerLink="/tours">
+          <span class="widget-icon">🎟</span>
+          <div>
+            <strong>{{ purchasedToursCount }}</strong>
+            <p>Kupljenih tura</p>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="currentUser?.role === 'guide'">
+        <div class="widget-card" routerLink="/tours">
+          <span class="widget-icon">🌍</span>
+          <div>
+            <strong>{{ myToursCount }}</strong>
+            <p>Mojih tura ({{ publishedToursCount }} objavljeno, {{ draftToursCount }} u pripremi)</p>
+          </div>
+        </div>
+        <div class="widget-card" routerLink="/tours">
+          <span class="widget-icon">💰</span>
+          <div>
+            <strong>{{ totalRevenue }} coins</strong>
+            <p>Ukupna zarada od kupovina</p>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="currentUser?.role === 'admin'">
+        <div class="widget-card" routerLink="/admin">
+          <span class="widget-icon">👥</span>
+          <div>
+            <strong>{{ totalAccounts }}</strong>
+            <p>Registrovanih naloga</p>
+          </div>
+        </div>
+        <div class="widget-card" routerLink="/admin">
+          <span class="widget-icon">🚫</span>
+          <div>
+            <strong>{{ blockedAccounts }}</strong>
+            <p>Blokiranih naloga</p>
+          </div>
+        </div>
+      </ng-container>
+
+      <div class="widget-card" *ngIf="currentUser?.role !== 'admin'">
+        <span class="widget-icon">🔔</span>
+        <div>
+          <strong>{{ unreadNotifications }}</strong>
+          <p>Nepročitanih obavještenja</p>
+        </div>
       </div>
     </section>
 
