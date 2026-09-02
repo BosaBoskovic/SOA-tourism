@@ -8,6 +8,7 @@ import {
   import { TourService, KeyPoint } from '../services/tour.service';
   import { PositionService, TouristPosition } from '../services/position.service';
   import { AuthService } from '../auth/services/auth.service';
+  import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 
   @Component({
     selector: 'app-tour-execution',
@@ -59,6 +60,7 @@ import {
       private authService: AuthService,
       private cdr: ChangeDetectorRef,
       private zone: NgZone,
+      private confirmDialogService: ConfirmDialogService,
       @Inject(PLATFORM_ID) private platformId: Object
     ) {}
   
@@ -465,9 +467,10 @@ import {
       });
     }
   
-    abandonTour(): void {
+    async abandonTour(): Promise<void> {
       if (!this.execution) return;
-      if (!confirm('Da li ste sigurni da želite napustiti turu?')) return;
+      const confirmed = await this.confirmDialogService.confirm('Da li ste sigurni da želite napustiti turu?');
+      if (!confirmed) return;
       this.stopPolling();
   
       this.executionService.abandon(this.execution.id).subscribe({
