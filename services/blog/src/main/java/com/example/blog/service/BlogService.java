@@ -13,6 +13,9 @@ import com.vladsch.flexmark.util.ast.Node;
 import lombok.RequiredArgsConstructor;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -48,11 +51,19 @@ public class BlogService{
         return blogRepository.save(blog);
     }
 
+    private static final int MAX_PAGE_SIZE = 100;
+
+    // Kept for the gRPC path (blogs.proto has no page/pageSize fields, and
+    // regenerating it isn't possible without a protoc/buf toolchain here) -
+    // capped at MAX_PAGE_SIZE rather than truly unbounded.
     public List<Blog> getAllBlogsForUser(String username){
+        return getAllBlogsForUser(username, 0, MAX_PAGE_SIZE).getContent();
+    }
+
+    public Page<Blog> getAllBlogsForUser(String username, int page, int size){
         Set<String> visibleAuthors = followerClient.getVisibleAuthors(username);
-        return blogRepository.findAll().stream()
-                .filter(blog -> visibleAuthors.contains(blog.getAuthorUsername()))
-                .toList();
+        PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by(Sort.Direction.DESC, "createdAt"));
+        return blogRepository.findByAuthorUsernameIn(visibleAuthors, pageable);
     }
 
     public Blog getBlogByIdForUser(String id, String username){
@@ -105,6 +116,44 @@ public class BlogService{
 
         comment.setText(newText);
         comment.setLastModifiedAt(LocalDateTime.now());
+        return blogRepository.save(blog);
+    }
+
+    public Blog updateBlog(String blogId, String username, String title, String descriptionMarkdown, List<String> imageUrls){
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new BlogNotFoundException("Blog nije pronadjen"));
+        if (!blog.getAuthorUsername().equals(username)) {
+            throw new BlogAccessDeniedException("Nije tvoj blog");
+        }
+
+        blog.setTitle(title);
+        blog.setDescriptionMarkdown(descriptionMarkdown);
+        blog.setImageUrls(imageUrls != null ? imageUrls : blog.getImageUrls());
+        return blogRepository.save(blog);
+    }
+
+    public void deleteBlog(String blogId, String username){
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new BlogNotFoundException("Blog nije pronadjen"));
+        if (!blog.getAuthorUsername().equals(username)) {
+            throw new BlogAccessDeniedException("Nije tvoj blog");
+        }
+        blogRepository.delete(blog);
+    }
+
+    // Either the comment's own author or the blog's author (moderation) can remove it.
+    public Blog deleteComment(String blogId, String commentId, String username){
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new BlogNotFoundException("Blog nije pronadjen"));
+
+        Comment comment = blog.getComments().stream().filter(c -> c.getId().equals(commentId)).findFirst()
+                .orElseThrow(() -> new BlogNotFoundException("Komentar nije pronadjen"));
+
+        if (!comment.getAuthorUsername().equals(username) && !blog.getAuthorUsername().equals(username)) {
+            throw new BlogAccessDeniedException("Nije tvoj komentar");
+        }
+
+        blog.getComments().remove(comment);
         return blogRepository.save(blog);
     }
 

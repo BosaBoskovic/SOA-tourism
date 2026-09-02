@@ -5,6 +5,7 @@ import com.example.blog.model.Blog;
 import com.example.blog.service.BlogService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,12 +41,22 @@ public class BlogController{
     }
 
     @GetMapping
-    public ResponseEntity<List<Map<String, Object>>> getAllBlogs(HttpServletRequest request){
+    public ResponseEntity<Map<String, Object>> getAllBlogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request){
         String username = AuthUtil.requireUsername(request);
-        List<Map<String, Object>> blogs = blogService.getAllBlogsForUser(username).stream()
+        Page<Blog> result = blogService.getAllBlogsForUser(username, page, size);
+        List<Map<String, Object>> blogs = result.getContent().stream()
                 .map(blog -> toBlogResponse(blog, username))
                 .collect(java.util.stream.Collectors.toList());
-        return ResponseEntity.ok(blogs);
+        return ResponseEntity.ok(Map.of(
+                "blogs", blogs,
+                "page", result.getNumber(),
+                "size", result.getSize(),
+                "totalElements", result.getTotalElements(),
+                "totalPages", result.getTotalPages()
+        ));
     }
 
     //dobavljanje jednog bloga (sa rendered markdown)
@@ -85,6 +96,41 @@ public class BlogController{
             return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
         }
         Blog blog = blogService.editComment(blogId, commentId, username, text.trim());
+        return ResponseEntity.ok(toBlogResponse(blog, username));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> updateBlog(
+            @PathVariable String id,
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest request){
+        String username = AuthUtil.requireUsername(request);
+        String title = (String) body.get("title");
+        String description = (String) body.get("descriptionMarkdown");
+        List<String> images = (List<String>) body.get("imageUrls");
+
+        if (title == null || title.isBlank() || description == null || description.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "title and descriptionMarkdown are required"));
+        }
+
+        Blog blog = blogService.updateBlog(id, username, title.trim(), description, images);
+        return ResponseEntity.ok(toBlogResponse(blog, username));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, String>> deleteBlog(@PathVariable String id, HttpServletRequest request){
+        String username = AuthUtil.requireUsername(request);
+        blogService.deleteBlog(id, username);
+        return ResponseEntity.ok(Map.of("message", "Blog obrisan"));
+    }
+
+    @DeleteMapping("/{blogId}/comments/{commentId}")
+    public ResponseEntity<Map<String, Object>> deleteComment(
+            @PathVariable String blogId,
+            @PathVariable String commentId,
+            HttpServletRequest request){
+        String username = AuthUtil.requireUsername(request);
+        Blog blog = blogService.deleteComment(blogId, commentId, username);
         return ResponseEntity.ok(toBlogResponse(blog, username));
     }
 
