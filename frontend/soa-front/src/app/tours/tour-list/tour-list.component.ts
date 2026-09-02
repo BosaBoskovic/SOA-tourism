@@ -1,7 +1,8 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { TourService, Tour, TourPreview } from '../../services/tour.service';
+import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { TourService, Tour, TourPreview, TourAnalytics, TourSearchParams } from '../../services/tour.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { ReviewFormComponent } from '../../reviews/review-form/review-form.component';
 import { ReviewService } from '../../services/review.service';
@@ -12,7 +13,7 @@ import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog
 @Component({
   selector: 'app-tour-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReviewFormComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, ReviewFormComponent],
   templateUrl: './tour-list.component.html',
   styleUrl: './tour-list.component.css'
 })
@@ -25,6 +26,9 @@ export class TourListComponent implements OnInit {
   cartTourIds: Set<string> = new Set();
   purchasedTourIds: Set<string> = new Set();
 
+  filterForm: FormGroup;
+  analytics: Record<string, TourAnalytics> = {};
+
   constructor(
     private tourService: TourService,
     private authService: AuthService,
@@ -34,7 +38,16 @@ export class TourListComponent implements OnInit {
     private cartService: CartService,
     private toastService: ToastService,
     private confirmDialogService: ConfirmDialogService,
-  ) {}
+    private fb: FormBuilder,
+  ) {
+    this.filterForm = this.fb.group({
+      difficulty: [''],
+      minPrice: [null],
+      maxPrice: [null],
+      sortBy: ['name'],
+      sortDir: ['asc'],
+    });
+  }
 
   ngOnInit(): void {
     this.authService.currentUser$.subscribe(user => {
@@ -115,6 +128,7 @@ export class TourListComponent implements OnInit {
           this.tours = tours;
           this.loading = false;
           this.cdr.detectChanges();
+          this.loadAnalytics(tours);
         });
       },
       error: (err) => {
@@ -127,11 +141,49 @@ export class TourListComponent implements OnInit {
     });
   }
 
+  private loadAnalytics(tours: Array<Tour | TourPreview>): void {
+    const tourIds = tours.map(t => t.id);
+    this.tourService.getAnalytics(tourIds).subscribe({
+      next: (results) => {
+        this.zone.run(() => {
+          this.analytics = {};
+          for (const a of results) {
+            this.analytics[a.tourId] = a;
+          }
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        // Non-fatal: the tour list still works without stats.
+      }
+    });
+  }
+
+  onFilterChange(): void {
+    if (this.currentUser?.role === 'tourist') {
+      this.loadAllTours();
+    }
+  }
+
+  resetFilters(): void {
+    this.filterForm.reset({ difficulty: '', minPrice: null, maxPrice: null, sortBy: 'name', sortDir: 'asc' });
+    this.onFilterChange();
+  }
+
   loadAllTours(): void {
     this.loading = true;
     this.error = '';
 
-    this.tourService.getAllTours().subscribe({
+    const raw = this.filterForm.value;
+    const params: TourSearchParams = {
+      difficulty: raw.difficulty || undefined,
+      minPrice: raw.minPrice ?? undefined,
+      maxPrice: raw.maxPrice ?? undefined,
+      sortBy: raw.sortBy || undefined,
+      sortDir: raw.sortDir || undefined,
+    };
+
+    this.tourService.getAllTours(params).subscribe({
       next: (tours) => {
         this.zone.run(() => {
           this.tours = tours;

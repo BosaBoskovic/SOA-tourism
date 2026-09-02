@@ -80,6 +80,23 @@ export interface TourDetailResponse {
   purchased: boolean;
 }
 
+export interface TourSearchParams {
+  difficulty?: string;
+  tags?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+  minLengthKm?: number;
+  maxLengthKm?: number;
+  sortBy?: 'price' | 'length' | 'name';
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface TourAnalytics {
+  tourId: string;
+  purchaseCount: number;
+  revenue: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TourService {
   private apiUrl = environment.apiUrl;
@@ -117,8 +134,28 @@ export class TourService {
     return this.http.delete(url);
   }
 
-  getAllTours(): Observable<TourPreview[]> {
-    return this.http.get<TourPreview[]>(`${this.apiUrl}/tours`);
+  getAllTours(params?: TourSearchParams): Observable<TourPreview[]> {
+    const query = new URLSearchParams();
+    if (params?.difficulty) query.set('difficulty', params.difficulty);
+    if (params?.tags?.length) query.set('tags', params.tags.join(','));
+    if (params?.minPrice != null) query.set('minPrice', String(params.minPrice));
+    if (params?.maxPrice != null) query.set('maxPrice', String(params.maxPrice));
+    if (params?.minLengthKm != null) query.set('minLengthKm', String(params.minLengthKm));
+    if (params?.maxLengthKm != null) query.set('maxLengthKm', String(params.maxLengthKm));
+    if (params?.sortBy) query.set('sortBy', params.sortBy);
+    if (params?.sortDir) query.set('sortDir', params.sortDir);
+
+    const queryString = query.toString();
+    const url = queryString ? `${this.apiUrl}/tours?${queryString}` : `${this.apiUrl}/tours`;
+    return this.http.get<TourPreview[]>(url);
+  }
+
+  // Guide-facing purchase/revenue analytics, aggregated by payments.
+  getAnalytics(tourIds: string[]): Observable<TourAnalytics[]> {
+    if (tourIds.length === 0) {
+      return new Observable(subscriber => { subscriber.next([]); subscriber.complete(); });
+    }
+    return this.http.post<TourAnalytics[]>(`${environment.apiUrl}/checkout/analytics`, tourIds);
   }
 
   publishTour(tourId: string): Observable<Tour> {

@@ -11,6 +11,35 @@
     </a>
   </div>
 
+  <form
+    class="filter-bar"
+    *ngIf="currentUser?.role === 'tourist'"
+    [formGroup]="filterForm"
+    (ngSubmit)="onFilterChange()"
+  >
+    <select class="form-control" formControlName="difficulty" (change)="onFilterChange()">
+      <option value="">Sve težine</option>
+      <option value="easy">Lako</option>
+      <option value="medium">Srednje</option>
+      <option value="hard">Teško</option>
+    </select>
+
+    <input class="form-control" type="number" placeholder="Min cena" formControlName="minPrice" (change)="onFilterChange()" />
+    <input class="form-control" type="number" placeholder="Max cena" formControlName="maxPrice" (change)="onFilterChange()" />
+
+    <select class="form-control" formControlName="sortBy" (change)="onFilterChange()">
+      <option value="name">Naziv</option>
+      <option value="price">Cena</option>
+      <option value="length">Dužina</option>
+    </select>
+    <select class="form-control" formControlName="sortDir" (change)="onFilterChange()">
+      <option value="asc">Rastuće</option>
+      <option value="desc">Opadajuće</option>
+    </select>
+
+    <button type="button" class="btn btn-outline" (click)="resetFilters()">Resetuj</button>
+  </form>
+
   <p *ngIf="loading">Učitavanje...</p>
   <p *ngIf="error" class="error">{{ error }}</p>
 
@@ -46,6 +75,10 @@
   <span *ngFor="let tag of tour.tags" class="tag">
     {{ tag }}
   </span>
+</div>
+
+<div class="tour-analytics" *ngIf="currentUser?.role === 'guide' && analytics[tour.id]">
+  📈 {{ analytics[tour.id].purchaseCount }} kupovina · 💰 {{ analytics[tour.id].revenue }} coins zarade
 </div>
 
       <div class="tour-actions">
