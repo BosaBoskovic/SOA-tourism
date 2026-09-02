@@ -61,9 +61,9 @@ func main() {
 	neo4jUser := getEnvOrDefault("NEO4J_USER", "neo4j")
 	neo4jPassword := getEnvOrDefault("NEO4J_PASSWORD", "password")
 	neo4jDatabase := getEnvOrDefault("NEO4J_DATABASE", "neo4j")
-	jwtSecretRaw := getEnvOrDefault("JWT_SECRET", "change-this-secret-in-production")
-	if jwtSecretRaw == "change-this-secret-in-production" {
-		log.Println("warning: JWT_SECRET is using a default value; set JWT_SECRET in production")
+	jwtSecretRaw := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	if jwtSecretRaw == "" {
+		log.Fatal("JWT_SECRET is not set; refusing to start with no signing secret (see .env.example)")
 	}
 
 	driver, err := neo4j.NewDriverWithContext(neo4jURI, neo4j.BasicAuth(neo4jUser, neo4jPassword, ""))
