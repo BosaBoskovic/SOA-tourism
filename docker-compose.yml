@@ -117,6 +117,7 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password
       NEO4J_DATABASE: neo4j
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: followers-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:

@@ -1,17 +1,9 @@
 const followerService = require("../services/followerService");
+const { requireActor } = require("../middleware/auth");
 
-function getActorUsername(req) {
-  return (req.header("X-Username") || "").trim();
-}
-
-function requireActor(req, res) {
-  const actorUsername = getActorUsername(req);
-  if (!actorUsername) {
-    res.status(401).json({ error: "Nedostaje X-Username header" });
-    return null;
-  }
-  return actorUsername;
-}
+const MIN_RECOMMENDATIONS_LIMIT = 1;
+const MAX_RECOMMENDATIONS_LIMIT = 100;
+const DEFAULT_RECOMMENDATIONS_LIMIT = 10;
 
 async function follow(req, res) {
   const actorUsername = requireActor(req, res);
@@ -25,12 +17,11 @@ async function follow(req, res) {
     return;
   }
 
-  try {
-    const relation = await followerService.followUser(actorUsername, targetUsername);
-    res.status(201).json({ message: "Uspesno pracenje", relation });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
+  const relation = await followerService.followUser(actorUsername, targetUsername);
+  res.status(relation.alreadyFollowing ? 200 : 201).json({
+    message: relation.alreadyFollowing ? "Vec pratite ovog korisnika" : "Uspesno pracenje",
+    relation,
+  });
 }
 
 async function unfollow(req, res) {
@@ -50,6 +41,10 @@ async function unfollow(req, res) {
 }
 
 async function following(req, res) {
+  if (!requireActor(req, res)) {
+    return;
+  }
+
   const username = (req.params.username || "").trim();
   if (!username) {
     res.status(400).json({ error: "username je obavezan" });
@@ -60,6 +55,11 @@ async function following(req, res) {
   res.json({ username, following: users });
 }
 
+// isFollowing and visibleAuthors are also called service-to-service by blog
+// (which has no bearer token to forward for these specific lookups), so
+// they intentionally stay open rather than requiring a verified actor -
+// network lockdown (only reachable via the gateway/internal network) is the
+// mitigation for these two, not per-call auth.
 async function isFollowing(req, res) {
   const followerUsername = (req.query.followerUsername || "").trim();
   const targetUsername = (req.query.targetUsername || "").trim();
@@ -85,13 +85,21 @@ async function visibleAuthors(req, res) {
 }
 
 async function recommendations(req, res) {
-  const username = (req.params.username || "").trim();
-  const limit = Number(req.query.limit) || 10;
+  if (!requireActor(req, res)) {
+    return;
+  }
 
+  const username = (req.params.username || "").trim();
   if (!username) {
     res.status(400).json({ error: "username je obavezan" });
     return;
   }
+
+  let limit = Number.parseInt(req.query.limit, 10);
+  if (!Number.isFinite(limit)) {
+    limit = DEFAULT_RECOMMENDATIONS_LIMIT;
+  }
+  limit = Math.min(Math.max(limit, MIN_RECOMMENDATIONS_LIMIT), MAX_RECOMMENDATIONS_LIMIT);
 
   const suggested = await followerService.getRecommendations(username, limit);
   res.json({ username, recommendations: suggested });
