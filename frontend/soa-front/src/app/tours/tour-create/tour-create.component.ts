@@ -6,6 +6,8 @@ import { TourService, Tour, KeyPoint } from '../../services/tour.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { FormsModule } from '@angular/forms';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
+import { UploadService } from '../../services/upload.service';
+import { ToastService } from '../../shared/toast/toast.service';
 
 @Component({
   selector: 'app-tour-create',
@@ -26,6 +28,7 @@ export class TourCreateComponent implements AfterViewInit, OnDestroy {
   kpLoading = false;
   kpError = '';
   selectedLatLng: { lat: number; lng: number } | null = null;
+  uploadingKpImage = false;
 
   private map: any = null;
   private L: any = null;
@@ -41,6 +44,8 @@ export class TourCreateComponent implements AfterViewInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
     private confirmDialogService: ConfirmDialogService,
+    private uploadService: UploadService,
+    private toastService: ToastService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.form = this.fb.group({
@@ -217,17 +222,19 @@ export class TourCreateComponent implements AfterViewInit, OnDestroy {
     }
 
     const file = input.files[0];
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      this.kpForm.patchValue({
-        imageUrl: reader.result as string
-      });
-
-      this.cdr.detectChanges();
-    };
-
-    reader.readAsDataURL(file);
+    this.uploadingKpImage = true;
+    this.uploadService.upload(file).subscribe({
+      next: (url) => {
+        this.kpForm.patchValue({ imageUrl: url });
+        this.uploadingKpImage = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.uploadingKpImage = false;
+        this.toastService.error('Greška pri otpremanju slike.');
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   addKeyPoint(): void {

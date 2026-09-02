@@ -7,6 +7,8 @@ import { AuthService } from '../../auth/services/auth.service';
 import { CartService } from '../../services/cart.service';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
+import { UploadService } from '../../services/upload.service';
+import { ToastService } from '../../shared/toast/toast.service';
 
 @Component({
   selector: 'app-tour-detail',
@@ -36,6 +38,7 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   kpForm: FormGroup;
   kpLoading = false;
   kpError = '';
+  uploadingKpImage = false;
 
   durations: TourDuration[] = [];
   durationForm: FormGroup;
@@ -57,6 +60,8 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
     private confirmDialogService: ConfirmDialogService,
+    private uploadService: UploadService,
+    private toastService: ToastService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.kpForm = this.fb.group({
@@ -285,17 +290,19 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   const file = input.files[0];
-  const reader = new FileReader();
-
-  reader.onload = () => {
-    this.kpForm.patchValue({
-      imageUrl: reader.result as string
-    });
-
-    this.cdr.detectChanges();
-  };
-
-  reader.readAsDataURL(file);
+  this.uploadingKpImage = true;
+  this.uploadService.upload(file).subscribe({
+    next: (url) => {
+      this.kpForm.patchValue({ imageUrl: url });
+      this.uploadingKpImage = false;
+      this.cdr.detectChanges();
+    },
+    error: () => {
+      this.uploadingKpImage = false;
+      this.toastService.error('Greška pri otpremanju slike.');
+      this.cdr.detectChanges();
+    }
+  });
 }
 
 startEditKeyPoint(kp: KeyPoint): void {

@@ -30,8 +30,10 @@
     accept="image/*"
     multiple
     (change)="onImagesSelected($event)"
+    [disabled]="uploadingImages"
   />
 </div>
+    <small *ngIf="uploadingImages">Otpremanje slika...</small>
 
     <div class="images-preview" *ngIf="images.length > 0">
       <div class="image-item" *ngFor="let img of images; let i = index">
@@ -40,7 +42,7 @@
       </div>
     </div>
 
-    <button class="submit-btn" type="button" (click)="submit()">
+    <button class="submit-btn" type="button" (click)="submit()" [disabled]="uploadingImages">
       Sačuvaj recenziju
     </button>
   </div>

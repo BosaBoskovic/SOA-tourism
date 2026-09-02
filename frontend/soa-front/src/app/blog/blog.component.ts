@@ -7,6 +7,8 @@ import { BlogService, BlogResponse, Comment } from './blog.service';
 import { AuthService } from '../auth/services/auth.service';
 import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../shared/toast/toast.service';
+import { UploadService } from '../services/upload.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-blog',
@@ -43,6 +45,7 @@ export class BlogComponent implements OnInit {
   imageUrlsRaw = '';
   isCreating = false;
   createError: string | null = null;
+  uploadingImages = false;
 
   // ── Pagination
   page = 0;
@@ -57,7 +60,8 @@ export class BlogComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private authService: AuthService,
     private confirmDialogService: ConfirmDialogService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private uploadService: UploadService
   ) {}
 
   ngOnInit(): void {
@@ -237,6 +241,32 @@ export class BlogComponent implements OnInit {
   closeCreateModal(): void {
     this.showCreateModal = false;
     this.editingBlogId = null;
+  }
+
+  // Otprema odabrane fajlove i dopisuje njihove URL-ove u imageUrlsRaw
+  // (jedan po liniji) - textarea ostaje i dalje uređiva za ručni unos/uklanjanje.
+  onBlogImagesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const files = Array.from(input.files);
+    this.uploadingImages = true;
+
+    forkJoin(files.map(file => this.uploadService.upload(file))).subscribe({
+      next: (urls) => {
+        const existing = this.imageUrlsRaw.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+        this.imageUrlsRaw = [...existing, ...urls].join('\n');
+        this.uploadingImages = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.uploadingImages = false;
+        this.toastService.error('Greška pri otpremanju slika.');
+        this.cdr.detectChanges();
+      }
+    });
+
+    input.value = '';
   }
 
   // Poziva se iz forme u modalu - prosljeđuje na create ili edit u zavisnosti

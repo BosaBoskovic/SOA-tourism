@@ -1,7 +1,9 @@
 import { Component, EventEmitter, Input, Output, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 import { ToastService } from '../../shared/toast/toast.service';
+import { UploadService } from '../../services/upload.service';
 
 export interface ReviewRequest {
   rating: number;
@@ -25,13 +27,15 @@ export class ReviewFormComponent {
 
   constructor(
     private cdr: ChangeDetectorRef,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private uploadService: UploadService
   ) {}
 
   rating = 5;
   comment = '';
   visitDate = '';
   images: string[] = [];
+  uploadingImages = false;
 
   onImagesSelected(event: Event): void {
   const input = event.target as HTMLInputElement;
@@ -40,15 +44,20 @@ export class ReviewFormComponent {
     return;
   }
 
-  Array.from(input.files).forEach(file => {
-    const reader = new FileReader();
+  const files = Array.from(input.files);
+  this.uploadingImages = true;
 
-    reader.onload = () => {
-      this.images = [...this.images, reader.result as string];
+  forkJoin(files.map(file => this.uploadService.upload(file))).subscribe({
+    next: (urls) => {
+      this.images = [...this.images, ...urls];
+      this.uploadingImages = false;
       this.cdr.detectChanges();
-    };
-
-    reader.readAsDataURL(file);
+    },
+    error: () => {
+      this.uploadingImages = false;
+      this.toastService.error('Greška pri otpremanju slika.');
+      this.cdr.detectChanges();
+    }
   });
 
   input.value = '';
@@ -61,6 +70,10 @@ export class ReviewFormComponent {
   submit(): void {
     if (!this.comment.trim() || !this.visitDate) {
       this.toastService.error('Popuni komentar i datum posete.');
+      return;
+    }
+    if (this.uploadingImages) {
+      this.toastService.error('Sačekaj da se slike otpreme.');
       return;
     }
 

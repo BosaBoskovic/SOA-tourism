@@ -122,7 +122,7 @@
       <!-- Lista ključnih tačaka -->
       <div class="kp-list" *ngIf="keyPoints.length > 0">
         <div *ngFor="let kp of keyPoints" class="kp-item">
-          <img *ngIf="kp.imageUrl" [src]="kp.imageUrl" class="kp-img" />
+          <img *ngIf="kp.imageUrl" [src]="kp.imageUrl" [alt]="kp.name" class="kp-img" />
           <div>
             <strong>{{ kp.order }}. {{ kp.name }}</strong>
             <p>{{ kp.description }}</p>
@@ -159,17 +159,20 @@
         type="file"
         accept="image/*"
         (change)="onKeyPointImageSelected($event)"
+        [disabled]="uploadingKpImage"
       />
+      <small *ngIf="uploadingKpImage">Otpremanje slike...</small>
 
       <img
         *ngIf="kpForm.value.imageUrl"
         [src]="kpForm.value.imageUrl"
+        [alt]="kpForm.value.name || 'Pregled slike ključne tačke'"
         class="image-preview"
       />
 
           </div>
           <p *ngIf="kpError" class="error">{{ kpError }}</p>
-          <button type="submit" class="btn btn-primary" [disabled]="kpLoading">
+          <button type="submit" class="btn btn-primary" [disabled]="kpLoading || uploadingKpImage">
             {{ kpLoading ? 'Čuvanje...' : (editingKeyPoint ? 'Sačuvaj izmene' : 'Dodaj tačku') }}
           </button>
 
