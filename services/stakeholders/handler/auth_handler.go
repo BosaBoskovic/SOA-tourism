@@ -66,6 +66,8 @@ func (h *AuthHandler) login(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Pogresni kredencijali"})
 		case "account_blocked":
 			c.JSON(http.StatusForbidden, gin.H{"error": "Nalog je blokiran"})
+		case "too_many_attempts":
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Previse pokusaja prijave, pokusajte ponovo kasnije"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri prijavi"})
 		}

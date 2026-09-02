@@ -45,6 +45,8 @@ func (s *StakeholdersGrpcServer) Login(ctx context.Context, req *stakeholdersv1.
 			return nil, status.Error(codes.Unauthenticated, "invalid_credentials")
 		case "account_blocked":
 			return nil, status.Error(codes.PermissionDenied, "account_blocked")
+		case "too_many_attempts":
+			return nil, status.Error(codes.ResourceExhausted, "too_many_attempts")
 		default:
 			return nil, status.Error(codes.Internal, "login_failed")
 		}

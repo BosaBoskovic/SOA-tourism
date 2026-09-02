@@ -28,9 +28,29 @@ import (
 	blogsv1 "soa-tourism-proto/blogs/v1"
 )
 
+// allowedOrigins parses ALLOWED_ORIGINS (comma-separated) into a lookup set.
+// Defaults to the local Angular dev server so `docker compose up` keeps
+// working out of the box without editing anything.
+func allowedOrigins() map[string]bool {
+	raw := getEnvOrDefault("ALLOWED_ORIGINS", "http://localhost:4200")
+	origins := make(map[string]bool)
+	for _, o := range strings.Split(raw, ",") {
+		o = strings.TrimSpace(o)
+		if o != "" {
+			origins[o] = true
+		}
+	}
+	return origins
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
+	allowed := allowedOrigins()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if allowed[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Max-Age", "86400")
@@ -282,6 +302,8 @@ func main() {
 				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Neispravan zahtev"})
 			case codes.PermissionDenied:
 				writeJSON(w, http.StatusForbidden, map[string]any{"error": "Nalog je blokiran"})
+			case codes.ResourceExhausted:
+				writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "Previse pokusaja prijave, pokusajte ponovo kasnije"})
 			default:
 				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Greska pri prijavi"})
 			}

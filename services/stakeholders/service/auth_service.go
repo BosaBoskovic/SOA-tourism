@@ -10,10 +10,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"stakeholders/model"
+	"stakeholders/ratelimit"
 	"stakeholders/repo"
 )
 
 const accessTokenTTL = 15 * time.Minute
+
+// Login lockout: 5 failed attempts within a minute locks that identity out
+// for 5 minutes. Blunts brute-forcing a specific account (there's no other
+// throttling in front of /stakeholders/login).
+const (
+	loginMaxAttempts = 5
+	loginWindow      = time.Minute
+	loginLockout     = 5 * time.Minute
+)
 
 type AccessClaims struct {
 	Role  string `json:"role"`
@@ -22,13 +32,19 @@ type AccessClaims struct {
 }
 
 type AuthService struct {
-	repo        *repo.AccountRepo
-	profileRepo *repo.ProfileRepo
-	secret      []byte
+	repo         *repo.AccountRepo
+	profileRepo  *repo.ProfileRepo
+	secret       []byte
+	loginLimiter *ratelimit.LoginLimiter
 }
 
 func NewAuthService(r *repo.AccountRepo, profileRepo *repo.ProfileRepo, secret []byte) *AuthService {
-	return &AuthService{repo: r, profileRepo: profileRepo, secret: secret}
+	return &AuthService{
+		repo:         r,
+		profileRepo:  profileRepo,
+		secret:       secret,
+		loginLimiter: ratelimit.NewLoginLimiter(loginMaxAttempts, loginWindow, loginLockout),
+	}
 }
 
 func (s *AuthService) EnsureUniqueConstraints(ctx context.Context) error {
@@ -79,8 +95,14 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 }
 
 func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (string, time.Time, *model.Account, error) {
+	limiterKey := strings.ToLower(strings.TrimSpace(req.UsernameOrEmail))
+	if !s.loginLimiter.Allow(limiterKey) {
+		return "", time.Time{}, nil, errors.New("too_many_attempts")
+	}
+
 	acc, err := s.repo.FindByIdentity(ctx, req.UsernameOrEmail)
 	if err != nil {
+		s.loginLimiter.RecordFailure(limiterKey)
 		return "", time.Time{}, nil, err
 	}
 
@@ -89,6 +111,7 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (string
 	}
 
 	if err = bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(req.Password)); err != nil {
+		s.loginLimiter.RecordFailure(limiterKey)
 		return "", time.Time{}, nil, errors.New("invalid_credentials")
 	}
 
@@ -97,6 +120,7 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (string
 		return "", time.Time{}, nil, err
 	}
 
+	s.loginLimiter.RecordSuccess(limiterKey)
 	return token, expiresAt, acc, nil
 }
 

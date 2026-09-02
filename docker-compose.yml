@@ -1,3 +1,8 @@
+# Network lockdown: stakeholders/blog/followers/tours/payments/encounters no
+# longer publish a host port. The gateway (8080) is the only app entry point
+# from outside docker; every other service is reachable only from other
+# containers on soa-network. Databases, RabbitMQ's management UI, and the
+# monitoring stack still publish their ports for local debugging.
 services:
   neo4j:
     image: neo4j:5
@@ -25,8 +30,9 @@ services:
       context: .
       dockerfile: services/stakeholders/Dockerfile
     container_name: soa-stakeholders
-    ports:
-      - "8081:8081"
+    # No host port published: only the gateway and other containers on
+    # soa-network can reach this service now (see docker-compose network
+    # lockdown notes at the bottom of this file).
     environment:
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
@@ -80,9 +86,7 @@ services:
       context: ./services/blog
       dockerfile: Dockerfile
     container_name: soa-blog
-    ports:
-      - "8082:8082"
-      - "9095:9095"
+    # No host port published - gateway-only (see network lockdown notes below).
     environment:
       MONGODB_URI: mongodb://soa-mongodb-blog:27017/blogdb
       MONGODB_DATABASE: blogdb
@@ -109,8 +113,7 @@ services:
       context: ./services/followers
       dockerfile: Dockerfile
     container_name: soa-followers
-    ports:
-      - "8084:8084"
+    # No host port published - gateway-only (see network lockdown notes below).
     environment:
       PORT: 8084
       NEO4J_URI: bolt://neo4j:7687
@@ -153,9 +156,7 @@ services:
       context: .
       dockerfile: services/tours/Dockerfile
     container_name: soa-tours
-    ports:
-      - "8085:8085"
-      - "9093:9093"
+    # No host port published - gateway-only (see network lockdown notes below).
     environment:
       MONGODB_URI: soa-mongodb-tours:27017
       PORT: 8085
@@ -187,8 +188,7 @@ services:
       context: .
       dockerfile: services/encounters/Dockerfile
     container_name: soa-encounters
-    ports:
-      - "8087:8083" # host 8083 je vec zauzet od strane mongo-express
+    # No host port published - gateway-only (see network lockdown notes below).
     environment:
       OTEL_SERVICE_NAME: encounters-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
@@ -222,6 +222,7 @@ services:
       PAYMENTS_URL: http://soa-payments:8086
       PAYMENTS_GRPC_URL: soa-payments:9092
       BLOGS_GRPC_URL: soa-blog:9095
+      ALLOWED_ORIGINS: http://localhost:4200
       OTEL_SERVICE_NAME: gateway
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
@@ -270,9 +271,7 @@ services:
       context: ./services/payments
       dockerfile: Dockerfile
     container_name: soa-payments
-    ports:
-      - "8086:8086"
-      - "9092:9092"
+    # No host port published - gateway-only (see network lockdown notes below).
     environment:
       ASPNETCORE_URLS: http://+:8086;http://+:9092
       PAYMENTS_GRPC_PORT: 9092
