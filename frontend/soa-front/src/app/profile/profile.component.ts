@@ -1,12 +1,15 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ProfileService, ProfileResponse } from '../services/profile.service';
+import { UploadService } from '../services/upload.service';
+import { ToastService } from '../shared/toast/toast.service';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css'
 })
@@ -16,11 +19,14 @@ export class ProfileComponent implements OnInit {
   editMode = false;
   loading = false;
   saving = false;
+  uploadingImage = false;
   error = '';
   success = '';
 
   constructor(
     private profileService: ProfileService,
+    private uploadService: UploadService,
+    private toastService: ToastService,
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef
   ) {}
@@ -62,17 +68,19 @@ export class ProfileComponent implements OnInit {
     }
 
     const file = input.files[0];
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      this.profileForm.patchValue({
-        imageURL: reader.result as string
-      });
-
-      this.cdr.detectChanges();
-    };
-
-    reader.readAsDataURL(file);
+    this.uploadingImage = true;
+    this.uploadService.upload(file).subscribe({
+      next: (url) => {
+        this.profileForm.patchValue({ imageURL: url });
+        this.uploadingImage = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.uploadingImage = false;
+        this.toastService.error('Greška pri otpremanju slike.');
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   onSave(): void {

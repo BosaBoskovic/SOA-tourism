@@ -1,0 +1,27 @@
+<div class="page-container">
+  <h2>Moje ture</h2>
+
+  <p *ngIf="loading">Učitavanje...</p>
+  <p *ngIf="error" class="alert-error">{{ error }}</p>
+  <p *ngIf="!loading && executions.length === 0 && !error">Još uvek nemate pokrenutih tura.</p>
+
+  <div class="executions-list" *ngIf="!loading && executions.length > 0">
+    <div class="execution-card" *ngFor="let exec of executions">
+      <div class="execution-info">
+        <h3>{{ tourNames[exec.tourId] }}</h3>
+        <span class="status" [class]="'status-' + exec.status">{{ statusLabel(exec.status) }}</span>
+        <p class="meta">Pokrenuto: {{ exec.startedAt | date: 'short' }}</p>
+        <p class="meta" *ngIf="exec.completedAt">Završeno: {{ exec.completedAt | date: 'short' }}</p>
+        <p class="meta">Ključne tačke dostignute: {{ exec.completedKeyPoints.length }}</p>
+      </div>
+      <a
+        *ngIf="exec.status === 'active'"
+        class="btn btn-primary"
+        [routerLink]="['/tours', exec.tourId, 'execute', exec.id]"
+      >Nastavi</a>
+      <a *ngIf="exec.status !== 'active'" class="btn btn-secondary" [routerLink]="['/tours', exec.tourId]">
+        Pogledaj turu
+      </a>
+    </div>
+  </div>
+</div>

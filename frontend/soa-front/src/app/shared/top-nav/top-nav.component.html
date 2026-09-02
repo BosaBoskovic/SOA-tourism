@@ -60,8 +60,20 @@
           <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
         </a>
 
+        <a
+          routerLink="/my-executions"
+          *ngIf="currentUser.role === 'tourist'"
+          (click)="menuOpen = false"
+        >
+          Istorija tura
+        </a>
+
         <a routerLink="/position-simulator" *ngIf="currentUser?.role === 'tourist'">
           Trenutna lokacija
+        </a>
+
+        <a routerLink="/encounters" (click)="menuOpen = false">
+          Izazovi
         </a>
 
         <a routerLink="/blog" (click)="menuOpen = false">

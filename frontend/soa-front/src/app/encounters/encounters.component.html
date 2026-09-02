@@ -1,0 +1,69 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>Izazovi</h2>
+    <button class="btn btn-primary" *ngIf="isGuide" (click)="toggleCreateForm()">
+      {{ showCreateForm ? 'Otkaži' : '+ Novi izazov' }}
+    </button>
+  </div>
+
+  <form class="create-form" *ngIf="showCreateForm" [formGroup]="createForm" (ngSubmit)="createEncounter()">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Naziv</label>
+        <input class="form-control" formControlName="name" />
+      </div>
+      <div class="form-group">
+        <label>Nagrada</label>
+        <input class="form-control" formControlName="reward" placeholder="npr. bedž 'Istraživač'" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Opis</label>
+      <textarea class="form-control" formControlName="description" rows="2"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Latitude</label>
+        <input class="form-control" type="number" formControlName="latitude" step="0.000001" />
+      </div>
+      <div class="form-group">
+        <label>Longitude</label>
+        <input class="form-control" type="number" formControlName="longitude" step="0.000001" />
+      </div>
+      <div class="form-group">
+        <label>Radijus (m)</label>
+        <input class="form-control" type="number" formControlName="radiusMeters" />
+      </div>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="useSimulatedPosition()">
+      Koristi moju trenutnu (simuliranu) lokaciju
+    </button>
+    <button type="submit" class="btn btn-primary">Kreiraj izazov</button>
+  </form>
+
+  <p *ngIf="loading">Učitavanje...</p>
+  <p *ngIf="error" class="alert-error">{{ error }}</p>
+  <p *ngIf="!loading && encounters.length === 0 && !error">Trenutno nema izazova.</p>
+
+  <div class="encounters-grid" *ngIf="!loading && encounters.length > 0">
+    <div class="encounter-card" *ngFor="let e of encounters" [class.claimed]="e.claimed">
+      <h3>{{ e.name }}</h3>
+      <p class="description">{{ e.description }}</p>
+      <p class="reward" *ngIf="e.reward">🏆 {{ e.reward }}</p>
+      <p class="meta">Radijus: {{ e.radiusMeters }}m</p>
+
+      <div class="card-actions">
+        <span class="badge-claimed" *ngIf="e.claimed">✓ Osvojeno {{ e.completedAt | date: 'short' }}</span>
+        <button
+          *ngIf="!e.claimed"
+          class="btn btn-primary"
+          [disabled]="claimingId === e.id"
+          (click)="claim(e)"
+        >
+          {{ claimingId === e.id ? 'Preuzimanje...' : 'Preuzmi izazov' }}
+        </button>
+        <button *ngIf="isGuide" class="btn btn-danger" (click)="remove(e)">Obriši</button>
+      </div>
+    </div>
+  </div>
+</div>

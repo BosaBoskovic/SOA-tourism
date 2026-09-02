@@ -1,8 +1,8 @@
 import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { Observable, BehaviorSubject, throwError } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface LoginRequest {
@@ -25,6 +25,7 @@ export interface AuthAccount {
 
 export interface AuthResponse {
   accessToken?: string;
+  refreshToken?: string;
   message: string;
   account: AuthAccount;
 }
@@ -54,17 +55,73 @@ export class AuthService {
       .pipe(tap(response => this.applySession(response)));
   }
 
+  // Exchanges the stored refresh token for a new access token. Used by
+  // unauthorizedInterceptor to keep a session alive silently instead of
+  // forcing a full re-login every 15 minutes.
+  refreshAccessToken(): Observable<AuthResponse> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return throwError(() => new Error('No refresh token available'));
+    }
+    return this.http.post<AuthResponse>(`${this.apiGatewayUrl}/stakeholders/refresh`, { refreshToken })
+      .pipe(
+        tap(response => this.applySession(response)),
+        catchError(err => {
+          this.logout();
+          return throwError(() => err);
+        })
+      );
+  }
+
+  changePassword(currentPassword: string, newPassword: string): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(`${this.apiGatewayUrl}/stakeholders/password`, {
+      currentPassword,
+      newPassword,
+    });
+  }
+
+  // No email service exists anywhere in this stack - the response carries
+  // the reset token/link directly instead of it being emailed. That's a
+  // demo-only shortcut; a real deployment must remove resetToken from the
+  // response and actually send an email.
+  requestPasswordReset(usernameOrEmail: string): Observable<{ message: string; resetToken?: string }> {
+    return this.http.post<{ message: string; resetToken?: string }>(
+      `${this.apiGatewayUrl}/stakeholders/password-reset/request`,
+      { usernameOrEmail }
+    );
+  }
+
+  confirmPasswordReset(token: string, newPassword: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiGatewayUrl}/stakeholders/password-reset/confirm`, {
+      token,
+      newPassword,
+    });
+  }
+
   logout(): void {
+    const refreshToken = this.getRefreshToken();
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     }
     this.currentUserSubject.next(null);
+    if (refreshToken) {
+      // Best-effort - the client-side session is already cleared either way.
+      this.http.post(`${this.apiGatewayUrl}/stakeholders/logout`, { refreshToken }).subscribe({ error: () => {} });
+    }
   }
 
   getToken(): string | null {
     if (isPlatformBrowser(this.platformId)) {
       return localStorage.getItem('token');
+    }
+    return null;
+  }
+
+  getRefreshToken(): string | null {
+    if (isPlatformBrowser(this.platformId)) {
+      return localStorage.getItem('refreshToken');
     }
     return null;
   }
@@ -87,6 +144,9 @@ export class AuthService {
     }
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('token', response.accessToken);
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
       localStorage.setItem('user', JSON.stringify(response.account));
     }
     this.currentUserSubject.next(response.account);

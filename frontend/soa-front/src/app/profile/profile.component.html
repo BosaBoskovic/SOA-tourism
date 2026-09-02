@@ -16,6 +16,7 @@
       <p *ngIf="profile.bio" class="bio">{{ profile.bio }}</p>
 
       <button class="btn btn-primary" (click)="toggleEdit()">Uredi profil</button>
+      <a routerLink="/change-password" class="btn btn-secondary">Promeni lozinku</a>
     </div>
 
     <form *ngIf="editMode" [formGroup]="profileForm" (ngSubmit)="onSave()">
@@ -35,7 +36,9 @@
     type="file"
     accept="image/*"
     (change)="onProfileImageSelected($event)"
+    [disabled]="uploadingImage"
   />
+  <small *ngIf="uploadingImage">Otpremanje...</small>
 
   <img
     *ngIf="profileForm.value.imageURL"
