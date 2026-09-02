@@ -2,29 +2,26 @@
 
 /*
  * Design tokens shared across the whole app. Dozens of component
- * stylesheets already reference these (--color-primary, --color-border,
- * etc.) but they were never actually defined anywhere - every themed
- * color/border/focus-state in login, register, profile, tour-list,
- * tour-detail, tour-create, encounters, my-executions and notification-bell
- * has been silently falling back to the browser default instead of the
- * intended palette. Values below match the app's existing hardcoded
- * palette (dashboard's navy/mint-green theme, the tour-card status badges).
+ * stylesheets reference these (--color-primary, --color-border, etc.).
+ * They used to live in an inline <style> block inside app.html's :host
+ * rule (app/app.html), which worked (custom properties inherit down the
+ * DOM from app-root to every routed page) but meant a template file was
+ * the single source of truth for global design tokens, and a plain
+ * global stylesheet couldn't see them before app-root ever mounted.
+ * Moved here as the one canonical definition - values unchanged.
  */
 :root {
-  --color-primary: #4f7cff;
-  --color-secondary: #66d2a0;
-  --color-accent: #c1440e;
-
-  --color-background: #f7fbff;
-  --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-
-  --color-text-primary: #17324d;
-  --color-text-secondary: #6d7d8f;
-  --color-text-muted: #94a3b8;
-
-  --color-success: #198754;
-  --color-error: #dc3545;
-  --color-warning: #f59e0b;
-  --color-info: #0ea5e9;
+  --color-primary: #4DA8DA;
+  --color-secondary: #66D2A0;
+  --color-accent: #FFB703;
+  --color-background: #F7FAFC;
+  --color-surface: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-text-primary: #1A202C;
+  --color-text-secondary: #4A5568;
+  --color-text-muted: #A0AEC0;
+  --color-success: #48BB78;
+  --color-warning: #F6AD55;
+  --color-error: #F56565;
+  --color-info: #63B3ED;
 }
