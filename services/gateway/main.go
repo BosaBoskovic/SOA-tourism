@@ -25,6 +25,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
+	"gateway/auth"
 	paymentsv1 "soa-tourism-proto/payments/v1"
 	stakeholdersv1 "soa-tourism-proto/stakeholders/v1"
 	toursv1 "soa-tourism-proto/tours/v1"
@@ -179,6 +180,12 @@ func main() {
 			logger.Error("opentelemetry shutdown failed", "error", err)
 		}
 	}()
+
+	uploadVerifier, err := auth.NewVerifier()
+	if err != nil {
+		logger.Error("auth verifier init failed", "error", err)
+		log.Fatal(err)
+	}
 
 	stakeholdersURL := getEnvOrDefault("STAKEHOLDERS_URL", "http://localhost:8081")
 	stakeholdersGRPCURL := getEnvOrDefault("STAKEHOLDERS_GRPC_URL", "localhost:9091")
@@ -705,6 +712,10 @@ func main() {
 		log.Printf("[GATEWAY] %s %s -> tours", r.Method, r.URL.Path)
 		toursProxy.ServeHTTP(w, r)
 	})))
+
+	// --- Media upload ---
+	mux.HandleFunc("/uploads", uploadHandler(uploadVerifier))
+	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadsDir()))))
 
 	// Fallback
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

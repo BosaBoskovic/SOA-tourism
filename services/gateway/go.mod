@@ -3,6 +3,7 @@ module gateway
 go 1.26.1
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/prometheus/client_golang v1.20.5
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0

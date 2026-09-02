@@ -226,8 +226,12 @@ services:
       PAYMENTS_GRPC_URL: soa-payments:9092
       BLOGS_GRPC_URL: soa-blog:9095
       ALLOWED_ORIGINS: http://localhost:4200
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
+      UPLOADS_DIR: /data/uploads
       OTEL_SERVICE_NAME: gateway
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
+    volumes:
+      - gateway_uploads:/data/uploads
     depends_on:
       stakeholders:
         condition: service_healthy
@@ -447,6 +451,7 @@ volumes:
   grafana_data:
   loki_data:
   promtail_positions:
+  gateway_uploads:
 
 networks:
   soa-network:
