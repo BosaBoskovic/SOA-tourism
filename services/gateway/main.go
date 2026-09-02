@@ -328,7 +328,11 @@ func main() {
 	})
 	mux.HandleFunc("/stakeholders/profile", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "Metod nije dozvoljen"})
+			// Anything but GET (e.g. PUT to update the profile) goes to
+			// stakeholders' own REST handler via the reverse proxy - this
+			// exact-match route used to dead-end every other method with a
+			// 405 instead of falling through to the /stakeholders/ prefix route.
+			stakeholdersProxy.ServeHTTP(w, r)
 			return
 		}
 		accessToken := extractBearerToken(r.Header.Get("Authorization"))

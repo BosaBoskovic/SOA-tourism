@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
 type PurchaseRepository struct {
 	paymentsURL string
 	client      *http.Client
+	mu          sync.RWMutex
 	tokens      map[string]bool
 }
 
@@ -27,16 +29,25 @@ func NewPurchaseRepository() *PurchaseRepository {
 	}
 }
 
+// SaveToken and HasToken are both called concurrently - SaveToken from the
+// RabbitMQ consumer goroutine, HasToken from HTTP request goroutines. Plain
+// map access under concurrent read/write is a fatal, unrecoverable crash in
+// Go, not just a data race.
 func (r *PurchaseRepository) SaveToken(touristID, tourID string) {
 	key := touristID + "_" + tourID
+	r.mu.Lock()
 	r.tokens[key] = true
+	r.mu.Unlock()
 }
 
 func (r *PurchaseRepository) HasToken(touristID, tourID string) (bool, error) {
 	key := touristID + "_" + tourID
 
 	// 1. prvo proveri RabbitMQ lokalnu kopiju
-	if r.tokens[key] {
+	r.mu.RLock()
+	cached := r.tokens[key]
+	r.mu.RUnlock()
+	if cached {
 		return true, nil
 	}
 
