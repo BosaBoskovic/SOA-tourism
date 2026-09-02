@@ -3,8 +3,7 @@ import { CommonModule, SlicePipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CartService, ShoppingCart, TourPurchaseToken, OrderItem } from '../services/cart.service';
 import { AuthService } from '../auth/services/auth.service';
-import { TopNavComponent } from '../shared/top-nav/top-nav.component';
-import { TourService } from '../services/tour.service'; 
+import { TourService } from '../services/tour.service';
 import { forkJoin, of } from 'rxjs';                     
 import { catchError } from 'rxjs/operators'; 
 
@@ -12,7 +11,7 @@ import { catchError } from 'rxjs/operators';
 @Component({
   selector: 'app-shopping-cart',
   standalone: true,
-  imports: [CommonModule, RouterLink, TopNavComponent, SlicePipe, DatePipe],
+  imports: [CommonModule, RouterLink, SlicePipe, DatePipe],
   templateUrl: './shopping-cart.component.html',
   styleUrl: './shopping-cart.component.css'
 })

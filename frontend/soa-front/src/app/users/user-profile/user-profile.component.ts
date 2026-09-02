@@ -4,12 +4,11 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../auth/services/auth.service';
 import { FollowersService } from '../../services/followers.service';
 import { ProfileService, PublicProfileResponse } from '../../services/profile.service';
-import { TopNavComponent } from '../../shared/top-nav/top-nav.component';
 
 @Component({
   selector: 'app-user-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, TopNavComponent],
+  imports: [CommonModule, RouterLink],
   templateUrl: './user-profile.component.html',
   styleUrl: './user-profile.component.css'
 })

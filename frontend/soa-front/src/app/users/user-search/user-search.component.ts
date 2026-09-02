@@ -5,12 +5,11 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../auth/services/auth.service';
 import { FollowersService, Recommendation } from '../../services/followers.service';
 import { ProfileService, PublicProfileResponse } from '../../services/profile.service';
-import { TopNavComponent } from '../../shared/top-nav/top-nav.component';
 
 @Component({
   selector: 'app-user-search',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, TopNavComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './user-search.component.html',
   styleUrl: './user-search.component.css'
 })

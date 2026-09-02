@@ -82,8 +82,6 @@ export class TourCreateComponent implements AfterViewInit, OnDestroy {
       authorId: user?.username
     }).subscribe({
       next: (tour) => {
-        console.log('CREATED TOUR:', tour);
-
         this.zone.run(() => {
           this.createdTour = tour;
           this.loading = false;
@@ -98,8 +96,6 @@ export class TourCreateComponent implements AfterViewInit, OnDestroy {
       },
 
       error: (err) => {
-        console.error('CREATE TOUR ERROR:', err);
-
         this.zone.run(() => {
           this.error = err.error?.error || 'Greška pri kreiranju ture.';
           this.loading = false;

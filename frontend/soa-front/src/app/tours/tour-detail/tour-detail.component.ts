@@ -191,8 +191,6 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   loadKeyPoints(tourId: string): void {
   this.tourService.getKeyPointsByTour(tourId).subscribe({
     next: (kps) => {
-      console.log('KEYPOINTS:', kps);
-
       this.zone.run(() => {
         this.keyPoints = kps;
         this.cdr.detectChanges();
@@ -200,8 +198,8 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
         if (this.map) this.renderKeyPointMarkers();
       });
     },
-    error: (err) => {
-      console.error('KEYPOINTS ERROR:', err);
+    error: () => {
+      // Non-fatal: the tour still renders without its keypoints.
     }
   });
 }
@@ -209,8 +207,6 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadTourDetail(id: string): void {
     this.tourService.getTourById(id).subscribe({
       next: (tour) => {
-        console.log('TOUR DETAIL:', tour);
-
         this.zone.run(() => {
           this.tour = tour;
           this.durations = tour.durations ?? [];
@@ -227,8 +223,6 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
         });
       },
       error: (err) => {
-        console.error('TOUR DETAIL ERROR:', err);
-
         this.zone.run(() => {
           this.error = err.error?.error || 'Tura nije pronađena.';
           this.loading = false;
@@ -270,15 +264,13 @@ export class TourDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   loadReviews(tourId: string): void {
   this.reviewService.getReviewsByTour(tourId).subscribe({
     next: (reviews) => {
-      console.log('REVIEWS:', reviews);
-
       this.zone.run(() => {
         this.reviews = reviews;
         this.cdr.detectChanges();
       });
     },
-    error: (err) => {
-      console.error('REVIEWS ERROR:', err);
+    error: () => {
+      // Non-fatal: the tour still renders without its reviews.
     }
   });
 }

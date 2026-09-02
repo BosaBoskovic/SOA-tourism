@@ -8,12 +8,11 @@ import {
   import { TourService, KeyPoint } from '../services/tour.service';
   import { PositionService, TouristPosition } from '../services/position.service';
   import { AuthService } from '../auth/services/auth.service';
-  import { TopNavComponent } from '../shared/top-nav/top-nav.component';
-  
+
   @Component({
     selector: 'app-tour-execution',
     standalone: true,
-    imports: [CommonModule, RouterLink, TopNavComponent, DecimalPipe, DatePipe],
+    imports: [CommonModule, RouterLink, DecimalPipe, DatePipe],
     templateUrl: './tour-execution.component.html',
     styleUrl: './tour-execution.component.css'
   })
