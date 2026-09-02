@@ -1,1 +1,30 @@
 /* You can add global styles to this file, and also import other style files */
+
+/*
+ * Design tokens shared across the whole app. Dozens of component
+ * stylesheets already reference these (--color-primary, --color-border,
+ * etc.) but they were never actually defined anywhere - every themed
+ * color/border/focus-state in login, register, profile, tour-list,
+ * tour-detail, tour-create, encounters, my-executions and notification-bell
+ * has been silently falling back to the browser default instead of the
+ * intended palette. Values below match the app's existing hardcoded
+ * palette (dashboard's navy/mint-green theme, the tour-card status badges).
+ */
+:root {
+  --color-primary: #4f7cff;
+  --color-secondary: #66d2a0;
+  --color-accent: #c1440e;
+
+  --color-background: #f7fbff;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+
+  --color-text-primary: #17324d;
+  --color-text-secondary: #6d7d8f;
+  --color-text-muted: #94a3b8;
+
+  --color-success: #198754;
+  --color-error: #dc3545;
+  --color-warning: #f59e0b;
+  --color-info: #0ea5e9;
+}
