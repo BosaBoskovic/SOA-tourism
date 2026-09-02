@@ -341,7 +341,43 @@
      font-weight: 600;
      color: var(--terra);
    }
-   
+
+   /* ─── PAGINATION ──────────────────────────────────────────── */
+
+   .pagination {
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     gap: 1rem;
+     margin: 1.5rem 0;
+   }
+
+   .btn-page {
+     background: var(--white);
+     border: 1.5px solid var(--border);
+     border-radius: 20px;
+     padding: 6px 16px;
+     font-family: 'Source Serif 4', serif;
+     font-size: 13px;
+     font-weight: 600;
+     cursor: pointer;
+   }
+
+   .btn-page:hover:not(:disabled) {
+     border-color: var(--terra-light);
+     color: var(--terra);
+   }
+
+   .btn-page:disabled {
+     opacity: 0.5;
+     cursor: not-allowed;
+   }
+
+   .page-info {
+     font-size: 13px;
+     color: var(--ink-light);
+   }
+
    /* ─── BLOG DETAIL ─────────────────────────────────────────── */
    
    .blog-detail {
@@ -472,7 +508,38 @@
      opacity: 0.6;
      cursor: not-allowed;
    }
-   
+
+   .post-owner-actions {
+     display: flex;
+     gap: 8px;
+   }
+
+   .btn-edit-post,
+   .btn-delete-post {
+     background: var(--white);
+     border: 1.5px solid var(--border);
+     border-radius: 20px;
+     padding: 6px 14px;
+     font-family: 'Source Serif 4', serif;
+     font-size: 13px;
+     font-weight: 600;
+     cursor: pointer;
+   }
+
+   .btn-edit-post:hover {
+     border-color: var(--terra-light);
+     color: var(--terra);
+   }
+
+   .btn-delete-post {
+     color: #C0392B;
+   }
+
+   .btn-delete-post:hover {
+     border-color: #C0392B;
+     background: #FDEDEC;
+   }
+
    /* Title */
    .detail-title {
      font-family: 'Playfair Display', serif;
@@ -724,7 +791,16 @@
      font-family: 'Source Serif 4', serif;
      font-weight: 600;
    }
-   
+
+   .comment-owner-actions {
+     display: flex;
+     gap: 12px;
+   }
+
+   .btn-delete-comment {
+     color: #C0392B;
+   }
+
    .edit-textarea {
      margin-top: 8px;
    }

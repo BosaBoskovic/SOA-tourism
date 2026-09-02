@@ -29,7 +29,6 @@ import (
 	paymentsv1 "soa-tourism-proto/payments/v1"
 	stakeholdersv1 "soa-tourism-proto/stakeholders/v1"
 	toursv1 "soa-tourism-proto/tours/v1"
-	blogsv1 "soa-tourism-proto/blogs/v1"
 )
 
 // allowedOrigins parses ALLOWED_ORIGINS (comma-separated) into a lookup set.
@@ -266,8 +265,6 @@ func main() {
     }
     defer blogsGrpcConn.Close()
 
-    blogsGrpcClient := blogsv1.NewBlogsServiceClient(blogsGrpcConn)
-
 	// --- Stakeholders servis ---
 	// Login is proxied to stakeholders' own REST handler (not gRPC): the
 	// response now includes a refreshToken, and the gRPC LoginResponse
@@ -374,46 +371,14 @@ func main() {
 	mux.HandleFunc("/profiles/", rewritePrefix("/profiles/", "/stakeholders/profile/", stakeholdersProxy))
 
 	// --- Blog servis ---
+	// GET (list + single) used to be served from here via gRPC, hand-building
+	// the JSON response and passing an unverified username through as a
+	// plain field. Both now proxy to blog's own REST endpoint like every
+	// other method already did: it verifies the JWT itself (JwtAuthFilter),
+	// supports ?page&size pagination, and the gRPC client had no other use
+	// left once these were the only two callers.
 	mux.HandleFunc("/blog", func(w http.ResponseWriter, r *http.Request) {
         username := extractUsernameFromJWT(r.Header.Get("Authorization"))
-
-        if r.Method == http.MethodGet {
-            log.Printf("[GATEWAY] %s %s -> blog gRPC GetAllBlogs", r.Method, r.URL.Path)
-
-            ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-            defer cancel()
-
-            resp, err := blogsGrpcClient.GetAllBlogs(ctx, &blogsv1.GetAllBlogsRequest{
-                Username: username,
-            })
-            if err != nil {
-                writeJSON(w, http.StatusInternalServerError, map[string]any{
-                    "error": err.Error(),
-                })
-                return
-            }
-
-            blogs := make([]map[string]any, 0, len(resp.Blogs))
-            for _, b := range resp.Blogs {
-                blogs = append(blogs, map[string]any{
-                    "blog": map[string]any{
-                        "id":                  b.Id,
-                        "title":               b.Title,
-                        "descriptionMarkdown": b.DescriptionMarkdown,
-                        "descriptionHtml":     b.DescriptionHtml,
-                        "authorUsername":      b.AuthorUsername,
-                        "createdAt":           b.CreatedAt,
-                        "imageUrls":           b.ImageUrls,
-                    },
-                    "likesCount":          b.LikesCount,
-                    "likedByCurrentUser":  b.LikedByCurrentUser,
-                })
-            }
-
-            writeJSON(w, http.StatusOK, blogs)
-            return
-        }
-
     if username != "" {
         r.Header.Set("X-Username", username)
     }
@@ -423,51 +388,6 @@ func main() {
 
     mux.HandleFunc("/blog/", func(w http.ResponseWriter, r *http.Request) {
         username := extractUsernameFromJWT(r.Header.Get("Authorization"))
-
-        if r.Method == http.MethodGet {
-            blogID := strings.TrimPrefix(r.URL.Path, "/blog/")
-            if blogID == "" {
-                writeJSON(w, http.StatusBadRequest, map[string]any{"error": "blog_id je obavezan"})
-                return
-            }
-
-            log.Printf("[GATEWAY] %s %s -> blog gRPC GetBlog id=%s", r.Method, r.URL.Path, blogID)
-
-            ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-            defer cancel()
-
-            resp, err := blogsGrpcClient.GetBlog(ctx, &blogsv1.GetBlogRequest{
-                BlogId:   blogID,
-                Username: username,
-            })
-            if err != nil {
-                writeJSON(w, http.StatusInternalServerError, map[string]any{
-                    "error": err.Error(),
-                })
-                return
-            }
-
-            b := resp.Blog
-            if b == nil {
-                writeJSON(w, http.StatusNotFound, map[string]any{"error": "Blog nije pronadjen"})
-                return
-            }
-            writeJSON(w, http.StatusOK, map[string]any{
-                "blog": map[string]any{
-                    "id":                  b.Id,
-                    "title":               b.Title,
-                    "descriptionMarkdown": b.DescriptionMarkdown,
-                    "descriptionHtml":     b.DescriptionHtml,
-                    "authorUsername":      b.AuthorUsername,
-                    "createdAt":           b.CreatedAt,
-                    "imageUrls":           b.ImageUrls,
-                },
-                "likesCount":          b.LikesCount,
-                "likedByCurrentUser":  b.LikedByCurrentUser,
-            })
-            return
-        }
-
     if username != "" {
         r.Header.Set("X-Username", username)
     }

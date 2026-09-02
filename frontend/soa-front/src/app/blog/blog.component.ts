@@ -5,6 +5,8 @@ import { Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { BlogService, BlogResponse, Comment } from './blog.service';
 import { AuthService } from '../auth/services/auth.service';
+import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
+import { ToastService } from '../shared/toast/toast.service';
 
 @Component({
   selector: 'app-blog',
@@ -33,20 +35,29 @@ export class BlogComponent implements OnInit {
   editingCommentId: string | null = null;
   editCommentText = '';
 
-  // ── Create modal state
+  // ── Create/edit modal state
   showCreateModal = false;
+  editingBlogId: string | null = null;
   mdTab: 'write' | 'preview' = 'write';
   newBlog = { title: '', descriptionMarkdown: '' };
   imageUrlsRaw = '';
   isCreating = false;
   createError: string | null = null;
 
+  // ── Pagination
+  page = 0;
+  pageSize = 10;
+  totalPages = 0;
+  totalElements = 0;
+
   constructor(
     private blogService: BlogService,
     private router: Router,
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
-    private authService: AuthService
+    private authService: AuthService,
+    private confirmDialogService: ConfirmDialogService,
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -61,9 +72,11 @@ export class BlogComponent implements OnInit {
     this.isLoading = true;
     this.error = null;
     this.cdr.detectChanges();
-    this.blogService.getAllBlogs().subscribe({
-      next: (data) => {
-        this.blogs = data;
+    this.blogService.getAllBlogs(this.page, this.pageSize).subscribe({
+      next: (res) => {
+        this.blogs = res.blogs;
+        this.totalPages = res.totalPages;
+        this.totalElements = res.totalElements;
         this.isLoading = false;
         this.cdr.detectChanges();
       },
@@ -75,6 +88,13 @@ export class BlogComponent implements OnInit {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  goToPage(page: number): void {
+    if (page < 0 || page >= this.totalPages || page === this.page) return;
+    this.page = page;
+    this.loadBlogs();
+    window.scrollTo(0, 0);
   }
 
   openBlog(item: BlogResponse): void {
@@ -180,8 +200,33 @@ export class BlogComponent implements OnInit {
     });
   }
 
-  // ── KREIRANJE ─────────────────────────────────────────────────────
+  // Autor komentara ILI autor bloga smiju obrisati komentar (isto pravilo kao na backendu).
+  canDeleteComment(comment: Comment): boolean {
+    if (!this.currentUser || !this.selectedBlog) return false;
+    return comment.authorUsername === this.currentUser.username
+      || this.selectedBlog.blog.authorUsername === this.currentUser.username;
+  }
+
+  async deleteComment(comment: Comment): Promise<void> {
+    if (!this.selectedBlog || !this.canDeleteComment(comment)) return;
+    const confirmed = await this.confirmDialogService.confirm(
+      'Da li sigurno želiš da obrišeš ovaj komentar?',
+      { confirmLabel: 'Obriši' }
+    );
+    if (!confirmed) return;
+
+    this.blogService.deleteComment(this.selectedBlog.blog.id, comment.id).subscribe({
+      next: (res) => {
+        this.selectedBlog!.blog.comments = res.blog.comments;
+        this.cdr.detectChanges();
+      },
+      error: () => this.toastService.error('Greška pri brisanju komentara.')
+    });
+  }
+
+  // ── KREIRANJE / IZMJENA (dijele isti modal) ──────────────────────
   openCreateModal(): void {
+    this.editingBlogId = null;
     this.showCreateModal = true;
     this.newBlog = { title: '', descriptionMarkdown: '' };
     this.imageUrlsRaw = '';
@@ -191,6 +236,17 @@ export class BlogComponent implements OnInit {
 
   closeCreateModal(): void {
     this.showCreateModal = false;
+    this.editingBlogId = null;
+  }
+
+  // Poziva se iz forme u modalu - prosljeđuje na create ili edit u zavisnosti
+  // od toga da li je modal otvoren za novi post ili izmjenu postojećeg.
+  submitBlogForm(): void {
+    if (this.editingBlogId) {
+      this.saveBlogEdit();
+    } else {
+      this.createBlog();
+    }
   }
 
   createBlog(): void {
@@ -208,17 +264,82 @@ export class BlogComponent implements OnInit {
       descriptionMarkdown: this.newBlog.descriptionMarkdown,
       imageUrls
     }).subscribe({
-      next: (res) => {
-        this.blogs = [res, ...this.blogs]; // novi array da Angular detektuje promjenu
+      next: () => {
         this.isCreating = false;
         this.closeCreateModal();
-        this.cdr.detectChanges();
+        this.page = 0;
+        this.loadBlogs(); // osvježi listu (i totalElements/totalPages) umjesto ručnog prepend-a
       },
       error: () => {
         this.createError = 'Greška pri kreiranju bloga.';
         this.isCreating = false;
         this.cdr.detectChanges();
       }
+    });
+  }
+
+  // ── IZMJENA / BRISANJE BLOGA ─────────────────────────────────────
+  isAuthor(item: BlogResponse | null): boolean {
+    return !!item && !!this.currentUser && item.blog.authorUsername === this.currentUser.username;
+  }
+
+  openEditModal(item: BlogResponse): void {
+    this.editingBlogId = item.blog.id;
+    this.newBlog = { title: item.blog.title, descriptionMarkdown: item.blog.descriptionMarkdown };
+    this.imageUrlsRaw = (item.blog.imageUrls || []).join('\n');
+    this.createError = null;
+    this.mdTab = 'write';
+    this.showCreateModal = true;
+  }
+
+  saveBlogEdit(): void {
+    if (!this.editingBlogId || !this.newBlog.title.trim()) return;
+    this.isCreating = true;
+    this.createError = null;
+
+    const imageUrls = this.imageUrlsRaw
+      .split('\n')
+      .map(u => u.trim())
+      .filter(u => u.length > 0 && this.isValidUrl(u));
+
+    this.blogService.updateBlog(this.editingBlogId, {
+      title: this.newBlog.title.trim(),
+      descriptionMarkdown: this.newBlog.descriptionMarkdown,
+      imageUrls
+    }).subscribe({
+      next: (res) => {
+        this.isCreating = false;
+        this.closeCreateModal();
+        if (this.selectedBlog && this.selectedBlog.blog.id === res.blog.id) {
+          this.selectedBlog = res;
+        }
+        this.loadBlogs();
+      },
+      error: () => {
+        this.createError = 'Greška pri izmjeni bloga.';
+        this.isCreating = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  async deleteBlog(item: BlogResponse): Promise<void> {
+    if (!this.isAuthor(item)) return;
+    const confirmed = await this.confirmDialogService.confirm(
+      `Da li sigurno želiš da obrišeš "${item.blog.title}"? Ova radnja se ne može poništiti.`,
+      { confirmLabel: 'Obriši' }
+    );
+    if (!confirmed) return;
+
+    this.blogService.deleteBlog(item.blog.id).subscribe({
+      next: () => {
+        this.toastService.success('Blog je obrisan.');
+        if (this.selectedBlog?.blog.id === item.blog.id) {
+          this.selectedBlog = null;
+        }
+        this.loadBlogs();
+      },
+      error: () => this.toastService.error('Greška pri brisanju bloga.')
     });
   }
 
@@ -269,14 +390,29 @@ export class BlogComponent implements OnInit {
   }
 
   /**
+   * Escapes raw HTML in user-typed markdown before any of the regex
+   * conversions below run, so a stray <script>/onerror=/etc in someone's
+   * draft can't ever end up injected as real HTML via bypassSecurityTrustHtml
+   * below - this used to convert raw user input straight into "trusted" HTML.
+   */
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /**
    * Lightweight client-side Markdown → HTML renderer.
-   * Backend renderuje pravi CommonMark, ali ovo služi za preview u modalu
-   * i fallback kada nema descriptionHtml iz API-ja.
+   * Backend renderuje pravi CommonMark (i sanitizuje ga), ali ovo služi za
+   * preview u modalu i fallback kada nema descriptionHtml iz API-ja.
    */
   markdownToHtml(md: string): SafeHtml {
     if (!md) return this.sanitizer.bypassSecurityTrustHtml('');
 
-    let html = md
+    let html = this.escapeHtml(md)
       // Headings
       .replace(/^#{6}\s(.+)$/gm, '<h6>$1</h6>')
       .replace(/^#{5}\s(.+)$/gm, '<h5>$1</h5>')

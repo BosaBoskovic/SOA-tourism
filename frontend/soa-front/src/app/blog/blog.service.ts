@@ -28,14 +28,22 @@ export interface BlogResponse {
   descriptionHtml?: string;
 }
 
+export interface BlogListResponse {
+  blogs: BlogResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class BlogService {
   private readonly BASE = `${environment.apiUrl}/blog`;
 
   constructor(private http: HttpClient) {}
 
-  getAllBlogs(): Observable<BlogResponse[]> {
-    return this.http.get<BlogResponse[]>(this.BASE);
+  getAllBlogs(page = 0, size = 10): Observable<BlogListResponse> {
+    return this.http.get<BlogListResponse>(`${this.BASE}?page=${page}&size=${size}`);
   }
 
   getBlogById(id: string): Observable<BlogResponse> {
@@ -50,12 +58,28 @@ export class BlogService {
     return this.http.post<BlogResponse>(this.BASE, payload);
   }
 
+  updateBlog(id: string, payload: {
+    title: string;
+    descriptionMarkdown: string;
+    imageUrls: string[];
+  }): Observable<BlogResponse> {
+    return this.http.put<BlogResponse>(`${this.BASE}/${id}`, payload);
+  }
+
+  deleteBlog(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.BASE}/${id}`);
+  }
+
   addComment(blogId: string, text: string): Observable<BlogResponse> {
     return this.http.post<BlogResponse>(`${this.BASE}/${blogId}/comments`, { text });
   }
 
   editComment(blogId: string, commentId: string, text: string): Observable<BlogResponse> {
     return this.http.put<BlogResponse>(`${this.BASE}/${blogId}/comments/${commentId}`, { text });
+  }
+
+  deleteComment(blogId: string, commentId: string): Observable<BlogResponse> {
+    return this.http.delete<BlogResponse>(`${this.BASE}/${blogId}/comments/${commentId}`);
   }
 
   toggleLike(blogId: string): Observable<{ likesCount: number; likedByCurrentUser: boolean }> {
