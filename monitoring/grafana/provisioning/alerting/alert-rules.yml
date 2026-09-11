@@ -364,3 +364,57 @@ groups:
         labels:
           severity: warning
           team: soa-tourism
+
+      # alert-rabbitmq-queue-backlog above sums ALL queues together, so a
+      # handful of permanently-failed notifications would be invisible
+      # next to a healthy notification-delivery backlog on a busy day -
+      # this rule watches the dead-letter queue specifically.
+      - uid: alert-notification-delivery-dead
+        title: "🔴 Notifikacije trajno neisporučene (dead-letter red > 0)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "sum(rabbitmq_queue_messages_ready{queue=\"notification-delivery-dead\"})"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "Postoje notifikacije koje su trajno neisporučene"
+          description: "notification-delivery-dead red nije prazan — provjeri stakeholders logove/Jaeger za uzrok (trace_id je u notification_dead_lettered log liniji)."
+        labels:
+          severity: warning
+          team: soa-tourism

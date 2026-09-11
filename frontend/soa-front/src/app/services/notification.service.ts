@@ -10,6 +10,11 @@ export interface AppNotification {
   relatedUsername?: string;
   createdAt: string;
   read: boolean;
+  // Status of the async delivery pipeline's simulated email/push send -
+  // separate from `read`, which tracks the in-app bell item. Optional
+  // because it rides along in the same polled response, not a new call.
+  deliveryStatus?: 'pending' | 'delivered' | 'failed';
+  deliveryAttempts?: number;
 }
 
 @Injectable({ providedIn: 'root' })

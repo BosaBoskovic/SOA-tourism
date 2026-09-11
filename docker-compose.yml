@@ -39,11 +39,15 @@ services:
       NEO4J_PASSWORD: password
       NEO4J_DATABASE: neo4j
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
+      RABBITMQ_HOST: rabbitmq
       OTEL_SERVICE_NAME: stakeholders-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
       neo4j:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8081/health"]
       interval: 15s

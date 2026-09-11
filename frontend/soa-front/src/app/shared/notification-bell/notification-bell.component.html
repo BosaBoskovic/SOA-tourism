@@ -19,7 +19,10 @@
         [class.unread]="!n.read"
         (click)="markRead(n)"
       >
-        <p>{{ n.message }}</p>
+        <p>
+          {{ n.message }}
+          <span class="delivery-failed" *ngIf="n.deliveryStatus === 'failed'" title="Isporuka nije uspela">⚠</span>
+        </p>
         <span class="time">{{ n.createdAt }}</span>
       </div>
     </div>

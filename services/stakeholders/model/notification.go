@@ -8,14 +8,27 @@ const (
 	NotificationTypeReview  = "review"
 )
 
+// Delivery status of a notification's async, out-of-band send (simulated
+// email/push) - separate from Read, which tracks the in-app bell item.
+// See services/stakeholders/messaging for the RabbitMQ pipeline that
+// drives these transitions.
+const (
+	DeliveryStatusPending   = "pending"
+	DeliveryStatusDelivered = "delivered"
+	DeliveryStatusFailed    = "failed"
+)
+
 type Notification struct {
-	ID              string `json:"id"`
-	Username        string `json:"-"`
-	Type            string `json:"type"`
-	Message         string `json:"message"`
-	RelatedUsername string `json:"relatedUsername,omitempty"`
-	CreatedAt       string `json:"createdAt"`
-	Read            bool   `json:"read"`
+	ID               string `json:"id"`
+	Username         string `json:"-"`
+	Type             string `json:"type"`
+	Message          string `json:"message"`
+	RelatedUsername  string `json:"relatedUsername,omitempty"`
+	CreatedAt        string `json:"createdAt"`
+	Read             bool   `json:"read"`
+	DeliveryStatus   string `json:"deliveryStatus"`
+	DeliveryAttempts int    `json:"deliveryAttempts"`
+	DeliveredAt      string `json:"deliveredAt,omitempty"`
 }
 
 // CreateNotificationRequest is what followers/blog/tours POST to the

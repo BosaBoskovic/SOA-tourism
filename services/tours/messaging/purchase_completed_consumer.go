@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
@@ -8,6 +9,9 @@ import (
 	"tours/repository"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type PurchaseCompletedEvent struct {
@@ -74,15 +78,7 @@ func consumePurchaseCompleted(purchaseRepo *repository.PurchaseRepository) error
 			if !ok {
 				return nil // delivery channel closed - let the caller reconnect
 			}
-			var event PurchaseCompletedEvent
-			if err := json.Unmarshal(msg.Body, &event); err != nil {
-				log.Printf("purchase-completed: skipping malformed message: %v", err)
-				continue
-			}
-			for _, item := range event.Items {
-				purchaseRepo.SaveToken(event.TouristId, item.TourId)
-			}
-			log.Println("Purchase completed event saved in tours service")
+			handlePurchaseCompleted(purchaseRepo, msg)
 		case err := <-closed:
 			if err != nil {
 				return err
@@ -90,4 +86,33 @@ func consumePurchaseCompleted(purchaseRepo *repository.PurchaseRepository) error
 			return nil
 		}
 	}
+}
+
+// handlePurchaseCompleted processes one delivery inside its own span
+// (needed because a bare defer inside the for/select loop above would only
+// fire once, at goroutine exit, not per message). Extracting the trace
+// context from the delivery's headers means this span joins the same
+// trace as the checkout request in payments that published it, instead of
+// starting a disconnected one - see RabbitMqPublisher.InjectTraceContext
+// on the publishing side.
+func handlePurchaseCompleted(purchaseRepo *repository.PurchaseRepository, msg amqp.Delivery) {
+	ctx := ExtractAMQPContext(context.Background(), msg.Headers)
+	tracer := otel.Tracer("tours-messaging")
+	_, span := tracer.Start(ctx, "purchase-completed process", trace.WithSpanKind(trace.SpanKindConsumer))
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("messaging.system", "rabbitmq"),
+		attribute.String("messaging.destination", "purchase-completed"),
+	)
+
+	var event PurchaseCompletedEvent
+	if err := json.Unmarshal(msg.Body, &event); err != nil {
+		log.Printf("purchase-completed: skipping malformed message: %v", err)
+		span.RecordError(err)
+		return
+	}
+	for _, item := range event.Items {
+		purchaseRepo.SaveToken(event.TouristId, item.TourId)
+	}
+	log.Println("Purchase completed event saved in tours service")
 }

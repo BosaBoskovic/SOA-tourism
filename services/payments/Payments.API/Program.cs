@@ -62,6 +62,7 @@ var otlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOI
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(serviceName))
     .WithTracing(tracing => tracing
+        .AddSource("Payments.Messaging") // RabbitMqPublisher's producer spans - see InjectTraceContext
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddOtlpExporter(otlp => otlp.Endpoint = new Uri($"{otlpEndpoint}/v1/traces")));

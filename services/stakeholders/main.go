@@ -11,6 +11,7 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 
 	"stakeholders/handler"
+	"stakeholders/messaging"
 	"stakeholders/repo"
 	"stakeholders/rpc"
 	"stakeholders/service"
@@ -116,7 +117,15 @@ func main() {
 	profileService := service.NewProfileService(profileRepo)
 	profileHandler := handler.NewProfileHandler(profileService, authService)
 
-	notificationService := service.NewNotificationService(notificationRepo)
+	// Async notification delivery (simulated email/push) over RabbitMQ -
+	// never blocks startup on the broker being reachable yet, mirroring
+	// how tours' purchase-completed consumer treats RabbitMQ as
+	// best-effort rather than a hard dependency.
+	broker := messaging.NewBroker(logger)
+	deliveryPublisher := messaging.NewPublisher(broker)
+	messaging.StartDeliveryConsumer(broker, notificationRepo, logger)
+
+	notificationService := service.NewNotificationService(notificationRepo, deliveryPublisher, logger)
 	notificationHandler := handler.NewNotificationHandler(notificationService, authService)
 
 	if err = authService.EnsureUniqueConstraints(ctx); err != nil {

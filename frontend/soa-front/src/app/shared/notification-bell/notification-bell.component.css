@@ -88,6 +88,12 @@
   font-weight: 600;
 }
 
+.delivery-failed {
+  color: #e5484d;
+  font-size: 0.75rem;
+  margin-left: 0.3rem;
+}
+
 .empty-state {
   padding: 1.5rem;
   text-align: center;
