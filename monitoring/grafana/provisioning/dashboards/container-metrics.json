@@ -65,10 +65,12 @@
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "topk(5, ...) picks the correct 5, but doesn't guarantee they come back value-sorted, and bargauge has no built-in 'sort by value' - the Sort by transformation below does the actual ordering. instant: true makes this 'top 5 right now' rather than 'was in the top 5 at some point in this time range, evaluated repeatedly across it'.",
       "targets": [
         {
           "expr": "topk(5, container_memory_usage_bytes{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"})",
           "legendFormat": "{{name}}",
+          "instant": true,
           "refId": "A"
         }
       ],
@@ -89,7 +91,16 @@
         "orientation": "horizontal",
         "displayMode": "gradient",
         "reduceOptions": { "calcs": ["lastNotNull"] }
-      }
+      },
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "Value", "desc": true }]
+          }
+        }
+      ]
     },
     {
       "id": 4,
@@ -97,10 +108,12 @@
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "topk(5, ...) picks the correct 5, but doesn't guarantee they come back value-sorted, and bargauge has no built-in 'sort by value' - the Sort by transformation below does the actual ordering. instant: true makes this 'top 5 right now' rather than 'was in the top 5 at some point in this time range, evaluated repeatedly across it'.",
       "targets": [
         {
           "expr": "topk(5, sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"}[5m])) by (name) * 100)",
           "legendFormat": "{{name}}",
+          "instant": true,
           "refId": "A"
         }
       ],
@@ -122,7 +135,16 @@
         "orientation": "horizontal",
         "displayMode": "gradient",
         "reduceOptions": { "calcs": ["lastNotNull"] }
-      }
+      },
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "Value", "desc": true }]
+          }
+        }
+      ]
     },
     {
       "id": 5,
@@ -172,22 +194,32 @@
     },
     {
       "id": 7,
-      "title": "Fajl sistem kontejnera — iskorišćeni prostor",
+      "title": "Fajl sistem kontejnera — disk I/O (read/write)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Was per-container disk USAGE (container_fs_usage_bytes) - that metric only ever reports the host root cgroup (id=\"/\", no per-container labels at all) under Docker Desktop's Windows/WSL2 backend, cAdvisor can't attribute overlay2 usage to individual containers there. Disk I/O RATE (container_fs_reads/writes_bytes_total) doesn't have that problem - it comes from cgroup blkio accounting, which does work per-container here - so this shows read/write throughput instead of space used.",
       "targets": [
         {
-          "expr": "container_fs_usage_bytes{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\",device!=\"\"}",
-          "legendFormat": "{{name}} ({{device}})",
+          "expr": "sum by (container_label_com_docker_compose_service) (rate(container_fs_reads_bytes_total{container_label_com_docker_compose_project=\"soa-tourism\"}[5m]))",
+          "legendFormat": "↓ read {{container_label_com_docker_compose_service}}",
           "refId": "A"
+        },
+        {
+          "expr": "sum by (container_label_com_docker_compose_service) (rate(container_fs_writes_bytes_total{container_label_com_docker_compose_project=\"soa-tourism\"}[5m]))",
+          "legendFormat": "↑ write {{container_label_com_docker_compose_service}}",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes",
+          "unit": "Bps",
           "custom": { "lineWidth": 1, "fillOpacity": 5 }
         }
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
       }
     },
     {

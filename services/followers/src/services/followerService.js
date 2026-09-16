@@ -32,17 +32,25 @@ async function followUser(followerUsername, targetUsername) {
     throw httpError("User ne moze da zaprati samog sebe", 400);
   }
 
-  const session = driver.session({ database: config.neo4jDatabase });
+  // Two sessions, not one: the pair of accountExists() checks below run
+  // concurrently (Promise.all), and the Neo4j driver does not allow two
+  // queries in flight on the same session at once - doing so throws
+  // "Queries cannot be run directly on a session with an open transaction".
+  // followerSession is free again once both checks resolve (we're past the
+  // await), so it's reused for the write query below instead of opening a
+  // third session.
+  const followerSession = driver.session({ database: config.neo4jDatabase });
+  const targetSession = driver.session({ database: config.neo4jDatabase });
   try {
     const [followerExists, targetExists] = await Promise.all([
-      accountExists(session, followerUsername),
-      accountExists(session, targetUsername),
+      accountExists(followerSession, followerUsername),
+      accountExists(targetSession, targetUsername),
     ]);
     if (!followerExists || !targetExists) {
       throw httpError("Korisnik ne postoji", 404);
     }
 
-    const result = await session.run(
+    const result = await followerSession.run(
       `
       MERGE (follower:User {username: $followerUsername})
       MERGE (target:User {username: $targetUsername})
@@ -61,7 +69,8 @@ async function followUser(followerUsername, targetUsername) {
       alreadyFollowing: record.get("wasAlreadyFollowing"),
     };
   } finally {
-    await session.close();
+    await followerSession.close();
+    await targetSession.close();
   }
 }
 

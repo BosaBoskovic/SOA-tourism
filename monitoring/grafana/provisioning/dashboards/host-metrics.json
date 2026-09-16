@@ -105,54 +105,50 @@
     },
     {
       "id": 4,
-      "title": "Fajl sistem — iskorišćenost diska (%)",
-      "type": "bargauge",
-      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 8 },
+      "title": "Disk I/O — brzina (read/write po uređaju)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Was 'Fajl sistem - iskorišćenost diska (%)' (node_filesystem_avail_bytes/size_bytes) - under Docker Desktop's Windows/WSL2 backend, node-exporter only sees tmpfs mounts (/tmp, /var) inside its own container, no real host disk at '/', so that query always came back empty (genuine platform limitation, not a query bug - on a native Linux host it would just work). Disk I/O throughput doesn't have this problem - node_disk_* comes from /proc/diskstats inside the VM and reports real numbers - so this shows read/write activity instead of free space.",
       "targets": [
         {
-          "expr": "100 - ((node_filesystem_avail_bytes{fstype!~\"tmpfs|fuse.lxcfs|squashfs\",mountpoint!~\"/boot.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|fuse.lxcfs|squashfs\",mountpoint!~\"/boot.*\"}) * 100)",
-          "legendFormat": "{{mountpoint}}",
+          "expr": "rate(node_disk_read_bytes_total[5m])",
+          "legendFormat": "↓ {{device}} read",
           "refId": "A"
+        },
+        {
+          "expr": "rate(node_disk_written_bytes_total[5m])",
+          "legendFormat": "↑ {{device}} write",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 70 },
-              { "color": "red", "value": 85 }
-            ]
-          }
+          "unit": "Bps",
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
         }
       },
       "options": {
-        "orientation": "horizontal",
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "displayMode": "gradient"
+        "tooltip": { "mode": "multi" }
       }
     },
     {
       "id": 5,
-      "title": "Fajl sistem — slobodan prostor",
+      "title": "Disk I/O — operacije u toku",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Was 'Fajl sistem - slobodan prostor' - see the panel next to this one for why filesystem capacity isn't available in this environment. node_disk_io_now (operations currently in flight per device) is a reasonable disk-pressure signal that is genuinely available here.",
       "targets": [
         {
-          "expr": "node_filesystem_avail_bytes{fstype!~\"tmpfs|fuse.lxcfs|squashfs\",mountpoint!~\"/boot.*\"}",
-          "legendFormat": "{{mountpoint}}",
+          "expr": "node_disk_io_now",
+          "legendFormat": "{{device}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes",
+          "unit": "short",
           "custom": { "lineWidth": 2, "fillOpacity": 8 }
         }
       }

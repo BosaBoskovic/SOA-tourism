@@ -72,7 +72,8 @@ public class CheckoutService
         // Token creation and clearing the cart happen in one transaction:
         // either both happen, or neither does - no more "tokens rolled back
         // but the cart is already gone" on a mid-checkout failure.
-        await using (var transaction = await _db.Database.BeginTransactionAsync())
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        try
         {
             if (newTokens.Count > 0)
             {
@@ -80,6 +81,23 @@ public class CheckoutService
             }
             await _cartRepo.ClearAsync(cart);
             await transaction.CommitAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Someone else already finished this exact checkout between our
+            // read and our write - a double-click, two open tabs, or (found
+            // by load-testing) two concurrent requests racing the same
+            // tourist. The unique (TouristId, TourId) index rejected our
+            // token insert, or the cart's concurrency token no longer
+            // matched because the winner already cleared it. The comment
+            // above already promised this method is "safe to call more than
+            // once" - this is what makes that literally true instead of
+            // just "won't double-charge, but will throw" for whoever loses
+            // the race. The transaction was never committed, so `await
+            // using` rolls it back on its own; just report what's actually
+            // purchased now, which is exactly what the caller asked for.
+            var settled = await _tokenRepo.GetByTouristIdAsync(touristId);
+            return settled.Where(t => cart.Items.Any(i => i.TourId == t.TourId)).ToList();
         }
 
         // The purchase is already durably committed at this point - a

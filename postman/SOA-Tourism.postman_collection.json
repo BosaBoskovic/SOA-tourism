@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "SOA Tourism",
-    "description": "Exercises the gateway's critical endpoints end-to-end: auth flow, the progressive login-throttling demo, and the checkout/shopping-cart path. Run 'Auth - Happy Path' first (top to bottom) to populate {{accessToken}} for everything else. Import the companion environment (SOA-Tourism.postman_environment.json) and select it before running anything.",
+    "description": "Exercises the gateway's critical endpoints end-to-end: auth flow, the progressive login-throttling demo, and the checkout/shopping-cart path. Import the companion environment (SOA-Tourism.postman_environment.json) and select it before running anything. Run 'Auth - Happy Path' first (top to bottom) to populate {{accessToken}} - it has no side effects, so leave it be and go run every other folder freely. 'Auth - Session Lifecycle' is separate on purpose: Refresh/Change Password/Logout each invalidate something (see each request's own description) - run those deliberately, and Logout only when you're completely done.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,7 +11,9 @@
     { "key": "testUsername", "value": "" },
     { "key": "testPassword", "value": "CorrectHorse1!" },
     { "key": "adminAccessToken", "value": "" },
-    { "key": "firstTourId", "value": "" }
+    { "key": "firstTourId", "value": "" },
+    { "key": "guideAccessToken", "value": "" },
+    { "key": "draftTourId", "value": "" }
   ],
   "item": [
     {
@@ -29,6 +31,7 @@
     },
     {
       "name": "Auth - Happy Path",
+      "description": "Run these 3 top-to-bottom, once, to get a valid session. Nothing here has a side effect on your accessToken/refreshToken - safe to leave as-is while you run every other folder below. When you're fully done testing, run 'Auth - Session Lifecycle' > 'Logout' as the very last thing.",
       "item": [
         {
           "name": "1. Register (tourist)",
@@ -97,9 +100,15 @@
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": "{{baseUrl}}/stakeholders/profile"
           }
-        },
+        }
+      ]
+    },
+    {
+      "name": "Auth - Session Lifecycle (each of these has a side effect - read before running)",
+      "description": "Everything here changes your session state. Run these deliberately, one at a time, never as a batch/Runner pass - and run 'Logout' dead last, only when you're completely done testing everything else.",
+      "item": [
         {
-          "name": "4. Refresh token",
+          "name": "Refresh token (rotates both tokens - old refreshToken dies)",
           "event": [
             {
               "listen": "test",
@@ -121,10 +130,11 @@
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             }
-          }
+          },
+          "description": "Refresh tokens are single-use: the server issues a brand new accessToken+refreshToken pair and immediately revokes the one you sent. The test script above updates the collection variables for you - but if you ever run this from the Collection Runner (not just Send), double-check the variables actually got saved back to the collection afterward before relying on them elsewhere."
         },
         {
-          "name": "5. Change password (then change it back)",
+          "name": "Change password (revokes ALL refresh tokens, accessToken still fine)",
           "request": {
             "method": "PUT",
             "header": [
@@ -137,10 +147,10 @@
               "raw": "{\n  \"currentPassword\": \"{{testPassword}}\",\n  \"newPassword\": \"{{testPassword}}\"\n}"
             }
           },
-          "description": "Setting newPassword back to the same value keeps this request idempotent to re-run - swap it for something different to actually test a change."
+          "description": "Setting newPassword back to the same value keeps this request idempotent to re-run. This revokes every refresh token for the account server-side (so other logged-in sessions can't keep using the old credentials' trust) - your current accessToken keeps working until it naturally expires (15 min from issuance), but {{refreshToken}} becomes useless immediately after this runs, even though the collection variable still holds the old value."
         },
         {
-          "name": "6. Logout",
+          "name": "Logout (revokes ONLY the current refreshToken - accessToken still valid until it expires)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -149,7 +159,8 @@
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             }
-          }
+          },
+          "description": "Verified empirically against this stack: logout only calls tokenRepo.RevokeRefreshToken on the one refresh token you send - it does NOT touch the access token (stateless JWT, no blacklist). A profile call with the same accessToken right after logout still returns 200; only a subsequent /refresh with that refreshToken returns 401. So after Logout, everything using {{accessToken}} in this collection keeps working fine until 15 minutes after you last logged in/refreshed - it just LOOKS broken if you assume logout kills the bearer token the way it would in a session-cookie system. Run this last."
         }
       ]
     },
@@ -227,6 +238,109 @@
       ]
     },
     {
+      "name": "Content Creation (guide)",
+      "description": "Needs a guide-role account. 'Auth - Happy Path' registers a tourist by default - run '1. Register (tourist)' once with role changed to \"guide\" in the body (or register a second account by hand) and put its accessToken here as {{guideAccessToken}} before running this folder. For the full request-storm version of this (many guides/tourists/tours at once, safe to run repeatedly), see scripts/request_storm.py in the repo instead - Postman is better for showing what one request looks like, the script is better for generating volume.",
+      "item": [
+        {
+          "name": "1. Create tour (draft)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.collectionVariables.set('draftTourId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{guideAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/tours",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Setnja kroz Petrovaradin\",\n  \"description\": \"Obilazak tvrdjave i starog grada.\",\n  \"difficulty\": \"easy\",\n  \"tags\": [\"istorija\", \"arhitektura\"],\n  \"durations\": [{ \"transport\": \"walk\", \"minutes\": 60 }]\n}"
+            }
+          },
+          "description": "403 here means the token isn't a guide - only guide/admin accounts can create tours."
+        },
+        {
+          "name": "2. Add keypoint #1",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{guideAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/keypoints",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tourId\": \"{{draftTourId}}\",\n  \"name\": \"Petrovaradinska tvrdjava\",\n  \"description\": \"Pocetna tacka.\",\n  \"latitude\": 45.2551,\n  \"longitude\": 19.8681,\n  \"imageUrl\": \"\",\n  \"order\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "3. Add keypoint #2",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{guideAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/keypoints",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tourId\": \"{{draftTourId}}\",\n  \"name\": \"Dunavski park\",\n  \"description\": \"Krajnja tacka.\",\n  \"latitude\": 45.2559,\n  \"longitude\": 19.8399,\n  \"imageUrl\": \"\",\n  \"order\": 1,\n  \"lengthKm\": 0.8\n}"
+            }
+          },
+          "description": "Publishing needs at least 2 keypoints - this is the second one."
+        },
+        {
+          "name": "4. Set price",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{guideAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/tours/{{draftTourId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Setnja kroz Petrovaradin\",\n  \"description\": \"Obilazak tvrdjave i starog grada.\",\n  \"difficulty\": \"easy\",\n  \"tags\": [\"istorija\", \"arhitektura\"],\n  \"durations\": [{ \"transport\": \"walk\", \"minutes\": 60 }],\n  \"price\": 1200\n}"
+            }
+          },
+          "description": "Price isn't part of tour creation - it's set (or changed later) via this same update endpoint."
+        },
+        {
+          "name": "5. Publish tour",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{guideAccessToken}}" }],
+            "url": "{{baseUrl}}/tours/{{draftTourId}}/publish"
+          },
+          "description": "One-way: a published tour can't be published again (400 \"tour is not in draft status\") - re-running this specific request twice is expected to fail the second time."
+        },
+        {
+          "name": "6. Follow the guide (so a tourist can review later)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/followers/follow",
+            "body": { "mode": "raw", "raw": "{\n  \"targetUsername\": \"<guide's username>\"\n}" }
+          },
+          "description": "Following is idempotent - following someone you already follow just returns alreadyFollowing: true, never an error. Safe to run as many times as you like."
+        }
+      ]
+    },
+    {
       "name": "Critical Business Flow (browse -> cart -> checkout)",
       "item": [
         {
@@ -285,6 +399,29 @@
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": "{{baseUrl}}/checkout/{{testUsername}}/has-purchased/{{firstTourId}}"
+          }
+        },
+        {
+          "name": "6. Leave a review",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reviews",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tourId\": \"{{firstTourId}}\",\n  \"touristId\": \"{{testUsername}}\",\n  \"touristName\": \"{{testUsername}}\",\n  \"rating\": 5,\n  \"comment\": \"Odlicno iskustvo!\",\n  \"images\": [],\n  \"tourVisitDate\": \"2026-09-01\"\n}"
+            }
+          },
+          "description": "Gated two ways: 403 if you haven't purchased/executed this tour (run step 4 first), 400 \"tourist has already reviewed this tour\" if you run this twice for the same tour - one review per (tourist, tour) pair, by design."
+        },
+        {
+          "name": "7. See tour's reviews",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/reviews/tour/{{firstTourId}}"
           }
         }
       ]

@@ -10,3 +10,8 @@ Migrations/*Designer.cs
 
 # Local secrets (see .env.example)
 .env
+
+# request_storm.py's saved state - contains access tokens for whatever
+# demo accounts it last created (worthless once they expire, but no reason
+# to commit tokens regardless).
+scripts/.storm_state.json

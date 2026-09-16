@@ -18,7 +18,7 @@
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
         {
-          "expr": "sum(rate({job=\"docker\"}[5m])) by (service)",
+          "expr": "sum(rate({service=~\".+\"}[5m])) by (service)",
           "legendFormat": "{{service}}",
           "refId": "A"
         }
@@ -39,7 +39,7 @@
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
         {
-          "expr": "{job=\"docker\"} |~ \"(?i)(error|warn|exception|fatal)\"",
+          "expr": "{service=~\".+\"} |~ \"(?i)(error|warn|exception|fatal)\"",
           "legendFormat": "",
           "refId": "A"
         }
