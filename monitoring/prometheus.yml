@@ -20,6 +20,18 @@ scrape_configs:
     static_configs:
       - targets: ['rabbitmq:15692']
 
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels: { service: postgres-payments }
+
+  - job_name: 'mongodb-exporter'
+    static_configs:
+      - targets: ['mongodb-blog-exporter:9216']
+        labels: { service: mongodb-blog }
+      - targets: ['mongodb-tours-exporter:9216']
+        labels: { service: mongodb-tours }
+
   # --- Application services (RED metrics: rate, errors, duration) ---
   - job_name: 'services'
     metrics_path: /metrics

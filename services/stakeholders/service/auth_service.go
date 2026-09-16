@@ -18,14 +18,26 @@ const accessTokenTTL = 15 * time.Minute
 const refreshTokenTTL = 7 * 24 * time.Hour
 const passwordResetTokenTTL = 30 * time.Minute
 
-// Login lockout: 5 failed attempts within a minute locks that identity out
-// for 5 minutes. Blunts brute-forcing a specific account (there's no other
-// throttling in front of /stakeholders/login).
+// Progressive lockout for credential-guessing-shaped endpoints: the first
+// couple of failures are free (typos happen), then every failure after
+// that doubles the wait before the same identity can try again - 1s, 2s,
+// 4s, 8s, ... capped at 15 minutes. Blunts brute-forcing a specific
+// account without needing anything in front of these endpoints (no other
+// throttling exists there).
 const (
-	loginMaxAttempts = 5
-	loginWindow      = time.Minute
-	loginLockout     = 5 * time.Minute
+	backoffGraceAttempts = 2
+	backoffBaseDelay     = time.Second
+	backoffMaxLockout    = 15 * time.Minute
 )
+
+// TooManyAttemptsError means a BackoffLimiter rejected the attempt; the
+// caller (an HTTP handler) should reply 429 with a Retry-After header set
+// from RetryAfter.
+type TooManyAttemptsError struct {
+	RetryAfter time.Duration
+}
+
+func (e *TooManyAttemptsError) Error() string { return "too_many_attempts" }
 
 type AccessClaims struct {
 	Role  string `json:"role"`
@@ -43,20 +55,22 @@ type TokenPair struct {
 }
 
 type AuthService struct {
-	repo         *repo.AccountRepo
-	profileRepo  *repo.ProfileRepo
-	tokenRepo    *repo.TokenRepo
-	secret       []byte
-	loginLimiter *ratelimit.LoginLimiter
+	repo                   *repo.AccountRepo
+	profileRepo            *repo.ProfileRepo
+	tokenRepo              *repo.TokenRepo
+	secret                 []byte
+	loginLimiter           *ratelimit.BackoffLimiter
+	changePasswordLimiter  *ratelimit.BackoffLimiter
 }
 
 func NewAuthService(r *repo.AccountRepo, profileRepo *repo.ProfileRepo, tokenRepo *repo.TokenRepo, secret []byte) *AuthService {
 	return &AuthService{
-		repo:         r,
-		profileRepo:  profileRepo,
-		tokenRepo:    tokenRepo,
-		secret:       secret,
-		loginLimiter: ratelimit.NewLoginLimiter(loginMaxAttempts, loginWindow, loginLockout),
+		repo:                  r,
+		profileRepo:           profileRepo,
+		tokenRepo:             tokenRepo,
+		secret:                secret,
+		loginLimiter:          ratelimit.NewBackoffLimiter(backoffGraceAttempts, backoffBaseDelay, backoffMaxLockout),
+		changePasswordLimiter: ratelimit.NewBackoffLimiter(backoffGraceAttempts, backoffBaseDelay, backoffMaxLockout),
 	}
 }
 
@@ -119,8 +133,8 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 
 func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (TokenPair, *model.Account, error) {
 	limiterKey := strings.ToLower(strings.TrimSpace(req.UsernameOrEmail))
-	if !s.loginLimiter.Allow(limiterKey) {
-		return TokenPair{}, nil, errors.New("too_many_attempts")
+	if allowed, retryAfter := s.loginLimiter.Allow(limiterKey); !allowed {
+		return TokenPair{}, nil, &TooManyAttemptsError{RetryAfter: retryAfter}
 	}
 
 	acc, err := s.repo.FindByIdentity(ctx, req.UsernameOrEmail)
@@ -184,13 +198,20 @@ func (s *AuthService) Logout(ctx context.Context, rawRefreshToken string) error 
 // new one, then revokes every refresh token so other sessions can't
 // silently continue using the old credentials' trust.
 func (s *AuthService) ChangePassword(ctx context.Context, username string, req model.ChangePasswordRequest) error {
+	limiterKey := strings.ToLower(strings.TrimSpace(username))
+	if allowed, retryAfter := s.changePasswordLimiter.Allow(limiterKey); !allowed {
+		return &TooManyAttemptsError{RetryAfter: retryAfter}
+	}
+
 	acc, err := s.repo.FindByIdentity(ctx, username)
 	if err != nil {
 		return err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		s.changePasswordLimiter.RecordFailure(limiterKey)
 		return errors.New("invalid_current_password")
 	}
+	s.changePasswordLimiter.RecordSuccess(limiterKey)
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {

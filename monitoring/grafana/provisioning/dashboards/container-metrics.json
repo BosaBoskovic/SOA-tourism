@@ -18,7 +18,7 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"soa-.*\",name!=\"\"}[5m])) by (name) * 100",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"}[5m])) by (name) * 100",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -43,7 +43,7 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=~\"soa-.*\",name!=\"\"}",
+          "expr": "container_memory_usage_bytes{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -67,7 +67,7 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         {
-          "expr": "topk(5, container_memory_usage_bytes{name=~\"soa-.*\",name!=\"\"})",
+          "expr": "topk(5, container_memory_usage_bytes{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"})",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -99,7 +99,7 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         {
-          "expr": "topk(5, sum(rate(container_cpu_usage_seconds_total{name=~\"soa-.*\",name!=\"\"}[5m])) by (name) * 100)",
+          "expr": "topk(5, sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"}[5m])) by (name) * 100)",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -132,7 +132,7 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         {
-          "expr": "rate(container_network_receive_bytes_total{name=~\"soa-.*\",name!=\"\"}[5m])",
+          "expr": "rate(container_network_receive_bytes_total{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"}[5m])",
           "legendFormat": "↓ {{name}}",
           "refId": "A"
         }
@@ -155,7 +155,7 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         {
-          "expr": "rate(container_network_transmit_bytes_total{name=~\"soa-.*\",name!=\"\"}[5m])",
+          "expr": "rate(container_network_transmit_bytes_total{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"}[5m])",
           "legendFormat": "↑ {{name}}",
           "refId": "A"
         }
@@ -178,7 +178,7 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         {
-          "expr": "container_fs_usage_bytes{name=~\"soa-.*\",name!=\"\",device!=\"\"}",
+          "expr": "container_fs_usage_bytes{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\",device!=\"\"}",
           "legendFormat": "{{name}} ({{device}})",
           "refId": "A"
         }
@@ -198,7 +198,7 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         {
-          "expr": "count(container_last_seen{name=~\"soa-.*\",name!=\"\"})",
+          "expr": "count(container_last_seen{container_label_com_docker_compose_project=\"soa-tourism\",name!=\"\"})",
           "legendFormat": "Pokrenuti kontejneri",
           "refId": "A"
         }
@@ -219,6 +219,176 @@
         "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
         "graphMode": "none"
+      }
+    },
+    {
+      "id": 9,
+      "title": "Memorija po servisu — % od limita (kritično > 75%)",
+      "type": "bargauge",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 46 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Agregatno po servisu (zbir svih replika) u odnosu na deploy.resources.limits.memory iz docker-compose.yml",
+      "targets": [
+        {
+          "expr": "sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) / sum by (container_label_com_docker_compose_service) (container_spec_memory_limit_bytes{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) * 100",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 10,
+      "title": "CPU po servisu — % od limita (kritično > 75%)",
+      "type": "bargauge",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 46 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Agregatno po servisu (zbir svih replika) u odnosu na deploy.resources.limits.cpus iz docker-compose.yml",
+      "targets": [
+        {
+          "expr": "sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}[2m])) / sum by (container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"} / container_spec_cpu_period{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) * 100",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Broj instanci po servisu",
+      "type": "bargauge",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 55 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Trenutan broj repliki po servisu (docker compose up -d --scale <servis>=N)",
+      "targets": [
+        {
+          "expr": "count by (container_label_com_docker_compose_service) (container_last_seen{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"})",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "blue", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 12,
+      "title": "OOM-kill događaji po servisu",
+      "type": "bargauge",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 55 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Koliko je puta kernel OOM-killer ugasio kontejner ovog servisa u izabranom vremenskom opsegu — glavni signal pri load/overload testiranju",
+      "targets": [
+        {
+          "expr": "sum by (container_label_com_docker_compose_service) (increase(container_oom_events_total{container_label_com_docker_compose_project=\"soa-tourism\"}[$__range]))",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Restart / flap po servisu (promjene up/down statusa)",
+      "type": "bargauge",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 55 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Broj promjena up⇄down za /metrics scrape cilj svakog servisa (job=services) u izabranom opsegu — visok broj znači da servis stalno pada i diže se",
+      "targets": [
+        {
+          "expr": "changes(up{job=\"services\"}[$__range])",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
       }
     }
   ],

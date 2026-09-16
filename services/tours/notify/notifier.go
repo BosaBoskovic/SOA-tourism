@@ -12,7 +12,15 @@ import (
 	"time"
 )
 
-var client = &http.Client{Timeout: 3 * time.Second}
+// DisableKeepAlives: stakeholders can run as multiple replicas behind
+// Docker's embedded DNS (docker-compose.yml no longer pins its
+// container_name) - a fresh connection per call is the simplest way to
+// spread these low-volume notification calls across replicas instead of
+// pinning to whichever one answered first.
+var client = &http.Client{
+	Timeout:   3 * time.Second,
+	Transport: &http.Transport{DisableKeepAlives: true},
+}
 
 func stakeholdersURL() string {
 	url := os.Getenv("STAKEHOLDERS_URL")

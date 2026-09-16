@@ -74,6 +74,46 @@ func getEnvOrDefault(key, fallback string) string {
 	return fallback
 }
 
+// dnsTarget prefixes a "host:port" gRPC target with the "dns:///" scheme so
+// grpc-go re-resolves it periodically via DNS (see roundRobinServiceConfig)
+// instead of resolving once at dial time and sticking with that address
+// forever ("passthrough", the default for a bare host:port). Needed for the
+// 4 downstream gRPC servers below to actually spread load across replicas
+// once a service is scaled past 1 (docker-compose.yml drops their fixed
+// container_name for exactly this reason - Docker's embedded DNS then
+// returns one A record per healthy replica).
+func dnsTarget(hostPort string) string {
+	return "dns:///" + hostPort
+}
+
+// roundRobinServiceConfig makes grpc-go open one subchannel per address the
+// "dns" resolver returns and spread RPCs across all of them, instead of the
+// default "pick_first" policy which would just pin to whichever replica
+// resolved first.
+const roundRobinServiceConfig = `{"loadBalancingConfig": [{"round_robin": {}}]}`
+
+// scalableServiceTransport is shared by every reverse proxy below. Docker's
+// embedded DNS returns one A record per healthy replica of a service (see
+// docker-compose.yml - the 6 backend services no longer pin container_name,
+// so "docker compose up -d --scale <service>=N" just works), but a plain
+// http.Transport dials once and then reuses that same connection/replica
+// for as long as it's kept alive - under steady back-to-back traffic a
+// keep-alive connection is never idle long enough to be recycled, so it
+// would pin to whichever replica answered the very first request forever.
+// Go's stdlib has no "max connection age" option (unlike e.g. .NET's
+// SocketsHttpHandler.PooledConnectionLifetime, used for payments' outbound
+// client) to force periodic reconnection regardless of activity, so the
+// only reliable fix is disabling keep-alives here: every request gets a
+// fresh connection and therefore a fresh DNS lookup, which is what actually
+// spreads requests across replicas (verified empirically - a smaller
+// MaxIdleConnsPerHost/IdleConnTimeout alone still pinned 15/15 sequential
+// requests to one replica in testing).
+func scalableServiceTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DisableKeepAlives = true
+	return t
+}
+
 func newReverseProxy(targetURL string) *httputil.ReverseProxy {
 	target, err := url.Parse(targetURL)
 	if err != nil {
@@ -83,7 +123,7 @@ func newReverseProxy(targetURL string) *httputil.ReverseProxy {
 	// Propagate the trace context (and create a client span) on every proxied
 	// request, so the downstream service's own tracing middleware continues
 	// the same trace instead of starting a new one.
-	proxy.Transport = otelhttp.NewTransport(http.DefaultTransport)
+	proxy.Transport = otelhttp.NewTransport(scalableServiceTransport())
 	return proxy
 }
 
@@ -187,14 +227,14 @@ func main() {
 	}
 
 	stakeholdersURL := getEnvOrDefault("STAKEHOLDERS_URL", "http://localhost:8081")
-	stakeholdersGRPCURL := getEnvOrDefault("STAKEHOLDERS_GRPC_URL", "localhost:9091")
+	stakeholdersGRPCURL := dnsTarget(getEnvOrDefault("STAKEHOLDERS_GRPC_URL", "localhost:9091"))
 	blogURL := getEnvOrDefault("BLOG_URL", "http://localhost:8082")
 	followersURL := getEnvOrDefault("FOLLOWERS_URL", "http://localhost:8084")
 	encountersURL := getEnvOrDefault("ENCOUNTERS_URL", "http://localhost:8083")
 	toursURL := getEnvOrDefault("TOURS_URL", "http://localhost:8085")
-	toursGRPCURL := getEnvOrDefault("TOURS_GRPC_URL", "localhost:9093")
-	paymentsGRPCURL := getEnvOrDefault("PAYMENTS_GRPC_URL", "localhost:9092")
-	blogsGRPCURL := getEnvOrDefault("BLOGS_GRPC_URL", "localhost:9095")
+	toursGRPCURL := dnsTarget(getEnvOrDefault("TOURS_GRPC_URL", "localhost:9093"))
+	paymentsGRPCURL := dnsTarget(getEnvOrDefault("PAYMENTS_GRPC_URL", "localhost:9092"))
+	blogsGRPCURL := dnsTarget(getEnvOrDefault("BLOGS_GRPC_URL", "localhost:9095"))
 
 	// --- Stakeholders gRPC konekcija (originalna) ---
 	grpcCtx, grpcCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -206,6 +246,7 @@ func main() {
 		grpc.WithBlock(),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
+		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
 	)
 	if err != nil {
 		log.Fatalf("neuspesno povezivanje sa stakeholders gRPC servisom: %v", err)
@@ -220,6 +261,7 @@ func main() {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
+		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
 	)
 	if err != nil {
 		log.Fatalf("neuspesno povezivanje sa tours gRPC servisom: %v", err)
@@ -245,6 +287,7 @@ func main() {
 		grpc.WithBlock(),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
+		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
 	)
 	if err != nil {
 		log.Fatalf("neuspesno povezivanje sa payments gRPC servisom: %v", err)
@@ -259,6 +302,7 @@ func main() {
         grpc.WithTransportCredentials(insecure.NewCredentials()),
         grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
         grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(10*1024*1024)),
+        grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
     )
     if err != nil {
         log.Fatalf("neuspesno povezivanje sa blog gRPC servisom: %v", err)

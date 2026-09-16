@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,6 +12,22 @@ import (
 	"stakeholders/model"
 	"stakeholders/service"
 )
+
+// writeTooManyAttempts replies 429 with a standard Retry-After header (RFC
+// 7231 §7.1.3, whole seconds, rounded up so the client never retries too
+// early) plus the same value in the JSON body for clients that don't read
+// headers (e.g. this repo's own frontend).
+func writeTooManyAttempts(c *gin.Context, err *service.TooManyAttemptsError, message string) {
+	retrySeconds := int(err.RetryAfter.Round(time.Second) / time.Second)
+	if retrySeconds < 1 {
+		retrySeconds = 1
+	}
+	c.Header("Retry-After", strconv.Itoa(retrySeconds))
+	c.JSON(http.StatusTooManyRequests, gin.H{
+		"error":             message,
+		"retryAfterSeconds": retrySeconds,
+	})
+}
 
 type AuthHandler struct {
 	svc *service.AuthService
@@ -88,13 +106,14 @@ func (h *AuthHandler) login(c *gin.Context) {
 
 	pair, acc, err := h.svc.Login(c.Request.Context(), req)
 	if err != nil {
-		switch err.Error() {
-		case "invalid_credentials":
+		var tooMany *service.TooManyAttemptsError
+		switch {
+		case errors.As(err, &tooMany):
+			writeTooManyAttempts(c, tooMany, "Previse pokusaja prijave, pokusajte ponovo kasnije")
+		case err.Error() == "invalid_credentials":
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Pogresni kredencijali"})
-		case "account_blocked":
+		case err.Error() == "account_blocked":
 			c.JSON(http.StatusForbidden, gin.H{"error": "Nalog je blokiran"})
-		case "too_many_attempts":
-			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Previse pokusaja prijave, pokusajte ponovo kasnije"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri prijavi"})
 		}
@@ -152,8 +171,11 @@ func (h *AuthHandler) changePassword(c *gin.Context) {
 	}
 
 	if err := h.svc.ChangePassword(c.Request.Context(), username, req); err != nil {
-		switch err.Error() {
-		case "invalid_current_password":
+		var tooMany *service.TooManyAttemptsError
+		switch {
+		case errors.As(err, &tooMany):
+			writeTooManyAttempts(c, tooMany, "Previse pogresnih pokusaja, pokusajte ponovo kasnije")
+		case err.Error() == "invalid_current_password":
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Trenutna lozinka nije tacna"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Greska pri promeni lozinke"})

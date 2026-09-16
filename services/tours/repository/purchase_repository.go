@@ -24,8 +24,18 @@ func NewPurchaseRepository() *PurchaseRepository {
 
 	return &PurchaseRepository{
 		paymentsURL: paymentsURL,
-		client:      &http.Client{Timeout: 5 * time.Second},
-		tokens:      make(map[string]bool),
+		// DisableKeepAlives: payments can now run as multiple replicas
+		// behind Docker's embedded DNS (docker-compose.yml no longer pins
+		// its container_name). A pooled/reused connection would keep
+		// talking to whichever replica answered the first request forever;
+		// forcing a fresh connection (and DNS lookup) per call is the
+		// simplest way to actually spread these low-volume calls across
+		// replicas.
+		client: &http.Client{
+			Timeout:   5 * time.Second,
+			Transport: &http.Transport{DisableKeepAlives: true},
+		},
+		tokens: make(map[string]bool),
 	}
 }
 

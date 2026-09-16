@@ -16,6 +16,11 @@ services:
     volumes:
       - neo4j_data:/var/lib/neo4j/data
       - neo4j_import:/var/lib/neo4j/import
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
       interval: 15s
@@ -29,7 +34,11 @@ services:
     build:
       context: .
       dockerfile: services/stakeholders/Dockerfile
-    container_name: soa-stakeholders
+    # No fixed container_name: scalable via "docker compose up -d --scale
+    # stakeholders=N" (Docker's embedded DNS then round-robins the plain
+    # "stakeholders" hostname across every healthy replica - see the
+    # gateway's dns:/// gRPC targets and every caller's STAKEHOLDERS_URL
+    # below).
     # No host port published: only the gateway and other containers on
     # soa-network can reach this service now (see docker-compose network
     # lockdown notes at the bottom of this file).
@@ -48,6 +57,11 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: "0.5"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8081/health"]
       interval: 15s
@@ -64,11 +78,27 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_blog_data:/data/db
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - soa-network
+
+  mongodb-blog-exporter:
+    image: percona/mongodb_exporter:0.44
+    container_name: soa-mongodb-blog-exporter
+    command:
+      - "--mongodb.uri=mongodb://soa-mongodb-blog:27017"
+    depends_on:
+      mongodb-blog:
+        condition: service_healthy
     networks:
       - soa-network
 
@@ -89,21 +119,30 @@ services:
     build:
       context: ./services/blog
       dockerfile: Dockerfile
-    container_name: soa-blog
+    # No fixed container_name: scalable via --scale blog=N (see stakeholders above).
     # No host port published - gateway-only (see network lockdown notes below).
     environment:
       MONGODB_URI: mongodb://soa-mongodb-blog:27017/blogdb
       MONGODB_DATABASE: blogdb
-      FOLLOWER_SERVICE_URL: http://soa-followers:8084
-      STAKEHOLDERS_URL: http://soa-stakeholders:8081
+      FOLLOWER_SERVICE_URL: http://followers:8084
+      STAKEHOLDERS_URL: http://stakeholders:8081
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: blog-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
+      # Container-aware JVM heap: cap at 75% of the 512M deploy.resources
+      # limit below instead of a fixed -Xmx, so the JVM leaves headroom for
+      # metaspace/threads/off-heap and the OS never has to OOM-kill it first.
+      JDK_JAVA_OPTIONS: "-XX:MaxRAMPercentage=75.0"
     depends_on:
       followers:
         condition: service_healthy
       mongodb-blog:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8082/health"]
       interval: 15s
@@ -117,7 +156,7 @@ services:
     build:
       context: ./services/followers
       dockerfile: Dockerfile
-    container_name: soa-followers
+    # No fixed container_name: scalable via --scale followers=N (see stakeholders above).
     # No host port published - gateway-only (see network lockdown notes below).
     environment:
       PORT: 8084
@@ -125,13 +164,18 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password
       NEO4J_DATABASE: neo4j
-      STAKEHOLDERS_URL: http://soa-stakeholders:8081
+      STAKEHOLDERS_URL: http://stakeholders:8081
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: followers-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://soa-jaeger:4318
     depends_on:
       neo4j:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8084/health"]
       interval: 15s
@@ -148,6 +192,11 @@ services:
       - "27018:27017"         
     volumes:
       - mongodb_tours_data:/data/db
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 15s
@@ -157,18 +206,29 @@ services:
     networks:
       - soa-network
 
+  mongodb-tours-exporter:
+    image: percona/mongodb_exporter:0.44
+    container_name: soa-mongodb-tours-exporter
+    command:
+      - "--mongodb.uri=mongodb://soa-mongodb-tours:27017"
+    depends_on:
+      mongodb-tours:
+        condition: service_healthy
+    networks:
+      - soa-network
+
   tours:
     build:
       context: .
       dockerfile: services/tours/Dockerfile
-    container_name: soa-tours
+    # No fixed container_name: scalable via --scale tours=N (see stakeholders above).
     # No host port published - gateway-only (see network lockdown notes below).
     environment:
       MONGODB_URI: soa-mongodb-tours:27017
       PORT: 8085
       TOURS_GRPC_PORT: 9093
-      PAYMENTS_URL: http://soa-payments:8086
-      STAKEHOLDERS_URL: http://soa-stakeholders:8081
+      PAYMENTS_URL: http://payments:8086
+      STAKEHOLDERS_URL: http://stakeholders:8081
       RABBITMQ_HOST: rabbitmq
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       OTEL_SERVICE_NAME: tours-service
@@ -179,6 +239,11 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: "0.5"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8085/health"]
       interval: 15s
@@ -194,7 +259,7 @@ services:
     build:
       context: .
       dockerfile: services/encounters/Dockerfile
-    container_name: soa-encounters
+    # No fixed container_name: scalable via --scale encounters=N (see stakeholders above).
     # No host port published - gateway-only (see network lockdown notes below).
     environment:
       PORT: 8083
@@ -206,6 +271,11 @@ services:
       mongodb-tours:
         condition: service_healthy
     restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.3"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8083/health"]
       interval: 15s
@@ -226,16 +296,23 @@ services:
       - "8080:8080"
     environment:
       PORT: 8080
-      STAKEHOLDERS_URL: http://soa-stakeholders:8081
-      STAKEHOLDERS_GRPC_URL: soa-stakeholders:9091
-      BLOG_URL: http://soa-blog:8082
-      FOLLOWERS_URL: http://soa-followers:8084
-      ENCOUNTERS_URL: http://soa-encounters:8083
-      TOURS_URL: http://soa-tours:8085
-      TOURS_GRPC_URL: soa-tours:9093
-      PAYMENTS_URL: http://soa-payments:8086
-      PAYMENTS_GRPC_URL: soa-payments:9092
-      BLOGS_GRPC_URL: soa-blog:9095
+      # Bare compose service names (not soa-<service>) for the 6 scalable
+      # backend services below: Docker's embedded DNS resolves these to
+      # every healthy replica, which is what makes --scale <service>=N
+      # actually spread traffic (round-robin gRPC via dns:/// targets in
+      # main.go, tuned-keepalive HTTP reverse proxies). gateway itself and
+      # every infra container keep their fixed soa-* name since they stay
+      # single-instance.
+      STAKEHOLDERS_URL: http://stakeholders:8081
+      STAKEHOLDERS_GRPC_URL: stakeholders:9091
+      BLOG_URL: http://blog:8082
+      FOLLOWERS_URL: http://followers:8084
+      ENCOUNTERS_URL: http://encounters:8083
+      TOURS_URL: http://tours:8085
+      TOURS_GRPC_URL: tours:9093
+      PAYMENTS_URL: http://payments:8086
+      PAYMENTS_GRPC_URL: payments:9092
+      BLOGS_GRPC_URL: blog:9095
       ALLOWED_ORIGINS: http://localhost:4200
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
       UPLOADS_DIR: /data/uploads
@@ -257,6 +334,11 @@ services:
       encounters:
         condition: service_healthy
     restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/health"]
       interval: 15s
@@ -278,6 +360,11 @@ services:
       - "5433:5432"
     volumes:
       - postgres_payments_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d paymentsdb"]
       interval: 10s
@@ -286,16 +373,27 @@ services:
     networks:
       - soa-network
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: soa-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres-payments:5432/paymentsdb?sslmode=disable"
+    depends_on:
+      postgres-payments:
+        condition: service_healthy
+    networks:
+      - soa-network
+
   payments:
     build:
       context: ./services/payments
       dockerfile: Dockerfile
-    container_name: soa-payments
+    # No fixed container_name: scalable via --scale payments=N (see stakeholders above).
     # No host port published - gateway-only (see network lockdown notes below).
     environment:
       ASPNETCORE_URLS: http://+:8086;http://+:9092
       PAYMENTS_GRPC_PORT: 9092
-      TOURS_URL: http://soa-tours:8085
+      TOURS_URL: http://tours:8085
       RABBITMQ_HOST: rabbitmq
       ConnectionStrings__DefaultConnection: "Host=soa-postgres-payments;Port=5432;Database=paymentsdb;Username=postgres;Password=postgres"
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - copy .env.example to .env}
@@ -307,6 +405,11 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: "0.75"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8086/health"]
       interval: 15s
@@ -328,6 +431,12 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - ./monitoring/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./monitoring/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/10-prometheus.conf:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
       interval: 15s

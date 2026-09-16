@@ -418,3 +418,311 @@ groups:
         labels:
           severity: warning
           team: soa-tourism
+
+  # Resource & Scaling Alerts — prate deploy.resources.limits iz
+  # docker-compose.yml (Faza 1) preko cAdvisor metrika, agregatno po
+  # servisu (zbir svih repliki), tako da rade i pre i posle skaliranja.
+  - orgId: 1
+    name: "Resource & Scaling Alerts"
+    folder: "SOA Tourism"
+    interval: 1m
+    rules:
+      - uid: alert-service-mem-high
+        title: "⚠ Servis koristi > 75% memorijskog limita"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) / sum by (container_label_com_docker_compose_service) (container_spec_memory_limit_bytes{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) * 100"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 75
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "{{ $labels.container_label_com_docker_compose_service }} koristi preko 75% dodijeljene memorije"
+          description: "Servis se približava mem limitu iz docker-compose.yml (deploy.resources.limits.memory). Razmisli o 'docker compose up -d --scale <servis>=N' ili provjeri curenje memorije."
+        labels:
+          severity: warning
+          team: soa-tourism
+
+      - uid: alert-service-mem-critical
+        title: "🔴 Servis koristi > 90% memorijskog limita (rizik od OOM-kill)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) / sum by (container_label_com_docker_compose_service) (container_spec_memory_limit_bytes{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) * 100"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 90
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "{{ $labels.container_label_com_docker_compose_service }} je na ivici svog memorijskog limita"
+          description: "Preko 90% mem limita — kernel OOM-killer može ugasiti kontejner u svakom trenutku. Provjeri i OOM-kill panel na Container Metrics dashboardu."
+        labels:
+          severity: critical
+          team: soa-tourism
+
+      - uid: alert-service-cpu-high
+        title: "⚠ Servis koristi > 75% CPU limita"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}[2m])) / sum by (container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"} / container_spec_cpu_period{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) * 100"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 75
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "{{ $labels.container_label_com_docker_compose_service }} koristi preko 75% dodijeljenog CPU-a"
+          description: "Servis se približava cpus limitu iz docker-compose.yml (deploy.resources.limits.cpus). Razmisli o skaliranju."
+        labels:
+          severity: warning
+          team: soa-tourism
+
+      - uid: alert-service-cpu-critical
+        title: "🔴 Servis koristi > 90% CPU limita"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}[2m])) / sum by (container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"} / container_spec_cpu_period{container_label_com_docker_compose_project=\"soa-tourism\",container_label_com_docker_compose_service=~\"gateway|stakeholders|blog|followers|tours|encounters|payments\"}) * 100"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 90
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "{{ $labels.container_label_com_docker_compose_service }} je CPU-throttlovan"
+          description: "Preko 90% cpus limita — kernel CFS scheduler aktivno throttluje kontejner (vidljivo i kao rastuća latencija na Services Overview dashboardu)."
+        labels:
+          severity: critical
+          team: soa-tourism
+
+      - uid: alert-oom-kill
+        title: "🔴 OOM-kill: kernel je ugasio kontejner zbog memorije"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "sum by (container_label_com_docker_compose_service) (increase(container_oom_events_total{container_label_com_docker_compose_project=\"soa-tourism\"}[5m]))"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "{{ $labels.container_label_com_docker_compose_service }} je OOM-killovan"
+          description: "Kernel je ugasio kontejner jer je prešao svoj memorijski limit. Servis će se restartovati (restart: on-failure) ali je obradio 0 zahtjeva u međuvremenu — dobar signal za load testiranje."
+        labels:
+          severity: critical
+          team: soa-tourism
+
+      - uid: alert-service-flapping
+        title: "⚠ Servis se stalno restartuje (flapping)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "PBFA97CFB590B2093"
+            model:
+              expr: "changes(up{job=\"services\"}[5m])"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 2
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: "__expr__"
+                uid: "-100"
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "{{ $labels.service }} je promijenio up/down status vise od 2 puta u 5 minuta"
+          description: "Servis flappuje - crash-restart petlja. Provjeri logove (Loki dashboard, izaberi $service) i Jaeger za poslednje zahtjeve prije pada."
+        labels:
+          severity: warning
+          team: soa-tourism

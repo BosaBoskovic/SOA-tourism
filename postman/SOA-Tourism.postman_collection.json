@@ -1,0 +1,323 @@
+{
+  "info": {
+    "name": "SOA Tourism",
+    "description": "Exercises the gateway's critical endpoints end-to-end: auth flow, the progressive login-throttling demo, and the checkout/shopping-cart path. Run 'Auth - Happy Path' first (top to bottom) to populate {{accessToken}} for everything else. Import the companion environment (SOA-Tourism.postman_environment.json) and select it before running anything.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "resetToken", "value": "" },
+    { "key": "testUsername", "value": "" },
+    { "key": "testPassword", "value": "CorrectHorse1!" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "firstTourId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health & Metrics",
+      "item": [
+        {
+          "name": "Gateway health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+        },
+        {
+          "name": "Gateway Prometheus metrics",
+          "request": { "method": "GET", "url": "{{baseUrl}}/metrics" }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Happy Path",
+      "item": [
+        {
+          "name": "1. Register (tourist)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// A fresh random username each run, so re-running the collection never hits 409 Conflict.",
+                  "pm.collectionVariables.set('testUsername', 'postman-user-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "console.log('Registered + logged in as', pm.collectionVariables.get('testUsername'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/stakeholders/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"password\": \"{{testPassword}}\",\n  \"email\": \"{{testUsername}}@example.com\",\n  \"role\": \"tourist\"\n}"
+            }
+          }
+        },
+        {
+          "name": "2. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/stakeholders/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{testUsername}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "3. Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/stakeholders/profile"
+          }
+        },
+        {
+          "name": "4. Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/stakeholders/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "5. Change password (then change it back)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/stakeholders/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{testPassword}}\",\n  \"newPassword\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "description": "Setting newPassword back to the same value keeps this request idempotent to re-run - swap it for something different to actually test a change."
+        },
+        {
+          "name": "6. Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/stakeholders/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Password Reset Flow",
+      "item": [
+        {
+          "name": "1. Request password reset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.resetToken) { pm.collectionVariables.set('resetToken', body.resetToken); }",
+                  "console.log('This stack has no email service - the token is returned directly in the response for local testing only.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/stakeholders/password-reset/request",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{testUsername}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "2. Confirm password reset",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/stakeholders/password-reset/confirm",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{testPassword}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Throttling Demo (progressive login backoff)",
+      "description": "Run 'Login - wrong password' with Postman's Collection Runner (or just click Send repeatedly) against a real username - e.g. {{testUsername}} after running 'Auth - Happy Path' once. First 2 failures return 401 for free; every failure after that locks the identity out for an exponentially growing window (1s, 2s, 4s, 8s, ... capped at 15 min) - visible as HTTP 429 with a Retry-After header. Wait out each Retry-After before the next send to see it escalate; spamming during a lockout does NOT extend it further (see the backend code comment for why) - each additional 429 just reports the same lockout counting down.",
+      "item": [
+        {
+          "name": "Login - wrong password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const retryAfter = pm.response.headers.get('Retry-After');",
+                  "console.log(pm.response.code, 'Retry-After=' + retryAfter, pm.response.json());",
+                  "pm.test('is 401 (free attempt) or 429 (locked out)', () => {",
+                  "  pm.expect([401, 429]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/stakeholders/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{testUsername}}\",\n  \"password\": \"definitely-wrong-password\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Critical Business Flow (browse -> cart -> checkout)",
+      "item": [
+        {
+          "name": "1. Browse published tours",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const tours = pm.response.json();",
+                  "if (Array.isArray(tours) && tours.length > 0) {",
+                  "  pm.collectionVariables.set('firstTourId', tours[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/tours?" }
+        },
+        {
+          "name": "2. Add tour to shopping cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/shopping-cart/{{testUsername}}/items",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tourId\": \"{{firstTourId}}\"\n}"
+            }
+          },
+          "description": "Needs firstTourId populated - run 'Browse published tours' first, and make sure at least one tour is published in this environment."
+        },
+        {
+          "name": "3. View shopping cart",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/shopping-cart/{{testUsername}}"
+          }
+        },
+        {
+          "name": "4. Checkout (real purchase)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/checkout/{{testUsername}}"
+          },
+          "description": "This actually completes a purchase against payments/Postgres and publishes purchase-completed to RabbitMQ - watch it show up on the Messaging & Databases Grafana dashboard and as a new trace in Jaeger."
+        },
+        {
+          "name": "5. Has purchased?",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/checkout/{{testUsername}}/has-purchased/{{firstTourId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Needs {{adminAccessToken}} set to an access token for an admin-role account (register/promote one, or log in as one, and paste its accessToken into this collection variable).",
+      "item": [
+        {
+          "name": "List all accounts",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": "{{baseUrl}}/stakeholders/accounts"
+          }
+        },
+        {
+          "name": "Block account",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": "{{baseUrl}}/stakeholders/accounts/{{testUsername}}/block"
+          }
+        },
+        {
+          "name": "Unblock account",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": "{{baseUrl}}/stakeholders/accounts/{{testUsername}}/unblock"
+          }
+        }
+      ]
+    }
+  ]
+}

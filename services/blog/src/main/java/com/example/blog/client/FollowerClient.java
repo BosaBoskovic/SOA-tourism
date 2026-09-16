@@ -27,6 +27,12 @@ public class FollowerClient {
         this.restClient = RestClient.builder()
                 .baseUrl(followerServiceUrl)
                 .requestFactory(requestFactory)
+                // followers can run as multiple replicas behind Docker's
+                // embedded DNS (docker-compose.yml no longer pins its
+                // container_name) - closing the connection after every call
+                // forces a fresh one (and DNS lookup) instead of pinning to
+                // whichever replica answered first.
+                .defaultHeader("Connection", "close")
                 .build();
     }
 
