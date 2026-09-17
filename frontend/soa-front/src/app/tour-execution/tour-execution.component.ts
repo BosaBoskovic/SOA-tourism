@@ -346,7 +346,7 @@ import {
   
         const marker = this.L.marker([kp.latitude, kp.longitude], { icon })
           .addTo(this.map)
-          .bindPopup(`<b>${kp.order}. ${kp.name}</b><br>${isCompleted ? '✅ Kompletovano' : '⏳ Nije posećeno'}`);
+          .bindPopup(`<b>${kp.order}. ${kp.name}</b><br><span class="icon icon-sm">${isCompleted ? 'check_circle' : 'hourglass_top'}</span> ${isCompleted ? 'Kompletovano' : 'Nije posećeno'}`);
   
         this.keyPointMarkers.push(marker);
       });
@@ -421,15 +421,15 @@ import {
   
             if (result.keyPointReached && result.keyPoint) {
               this.lastReachedKeyPoint = result.keyPoint.name;
-              this.lastCheckMessage = `✅ Dostigli ste ključnu tačku: ${result.keyPoint.name}!`;
+              this.lastCheckMessage = `Dostigli ste ključnu tačku: ${result.keyPoint.name}!`;
             } else {
-              this.lastCheckMessage = `📍 Provjera u ${new Date().toLocaleTimeString()} — niste blizu ključne tačke.`;
+              this.lastCheckMessage = `Provjera u ${new Date().toLocaleTimeString()} — niste blizu ključne tačke.`;
               this.lastReachedKeyPoint = null;
             }
-  
+
             if (result.execution.status === 'completed') {
               this.stopPolling();
-              this.lastCheckMessage = '🎉 Čestitamo! Kompletirali ste sve ključne tačke!';
+              this.lastCheckMessage = 'Čestitamo! Kompletirali ste sve ključne tačke!';
             }
   
             this.renderKeyPointMarkers();
@@ -454,7 +454,7 @@ import {
         next: (exec) => {
           this.zone.run(() => {
             this.execution = exec;
-            this.lastCheckMessage = '🎉 Tura uspješno završena!';
+            this.lastCheckMessage = 'Tura uspješno završena!';
             this.cdr.detectChanges();
           });
         },
@@ -477,7 +477,7 @@ import {
         next: (exec) => {
           this.zone.run(() => {
             this.execution = exec;
-            this.lastCheckMessage = '👋 Napustili ste turu.';
+            this.lastCheckMessage = 'Napustili ste turu.';
             this.cdr.detectChanges();
           });
         },

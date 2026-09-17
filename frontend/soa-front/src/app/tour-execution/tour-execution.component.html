@@ -3,24 +3,24 @@
   <p *ngIf="loading" class="loading-text">Pokretanje ture...</p>
   <p *ngIf="error" class="error-box">{{ error }}
     <a *ngIf="error.includes('lokaciju')" (click)="openPositionPanel()" class="btn btn-primary btn-sm" style="cursor:pointer">
-      📍 Postavi lokaciju ovdje
+      <span class="icon icon-sm">location_on</span> Postavi lokaciju ovdje
     </a>
   </p>
 
   <!-- Inline Position Panel -->
   <div *ngIf="showPositionPanel" class="position-panel">
     <div class="position-panel-header">
-      <h4>📍 Postavi svoju lokaciju</h4>
-      <button type="button" class="close-btn" (click)="closePositionPanel()">✕</button>
+      <h4><span class="icon icon-sm">location_on</span> Postavi svoju lokaciju</h4>
+      <button type="button" class="close-btn" (click)="closePositionPanel()"><span class="icon icon-sm">close</span></button>
     </div>
     <p class="position-hint">Klikni na mapu da postaviš svoju trenutnu poziciju, pa klikni <strong>Potvrdi</strong>.</p>
     <div id="mini-position-map" class="mini-map"></div>
     <div *ngIf="pendingPosition" class="pending-coords">
-      📌 Odabrano: <strong>{{ pendingPosition.latitude | number:'1.5-5' }}</strong>, <strong>{{ pendingPosition.longitude | number:'1.5-5' }}</strong>
+      <span class="icon icon-sm">push_pin</span> Odabrano: <strong>{{ pendingPosition.latitude | number:'1.5-5' }}</strong>, <strong>{{ pendingPosition.longitude | number:'1.5-5' }}</strong>
     </div>
     <div class="position-panel-actions">
       <button type="button" class="btn btn-primary" [disabled]="!pendingPosition" (click)="confirmPosition()">
-        ✅ Potvrdi i pokreni turu
+        <span class="icon icon-sm">check_circle</span> Potvrdi i pokreni turu
       </button>
       <button type="button" class="btn btn-outline" (click)="closePositionPanel()">Otkaži</button>
     </div>
@@ -31,7 +31,7 @@
     <!-- Header -->
     <div class="execution-header">
       <div class="breadcrumb">
-        <a routerLink="/tours" class="back-link">← Ture</a>
+        <a routerLink="/tours" class="back-link"><span class="icon icon-sm">arrow_back</span> Ture</a>
         <span class="sep">/</span>
         <a [routerLink]="['/tours', tourId]" class="back-link">Detalji ture</a>
         <span class="sep">/</span>
@@ -40,14 +40,16 @@
 
       <div class="status-row">
         <span class="status-badge" [class]="'status-' + execution.status">
-          {{ execution.status === 'active' ? '▶ Aktivna' :
-             execution.status === 'completed' ? '✅ Završena' : '⛔ Napuštena' }}
+          <span class="icon icon-sm">{{ execution.status === 'active' ? 'play_arrow' :
+             execution.status === 'completed' ? 'check_circle' : 'block' }}</span>
+          {{ execution.status === 'active' ? 'Aktivna' :
+             execution.status === 'completed' ? 'Završena' : 'Napuštena' }}
         </span>
         <span class="progress-text">
           {{ completedCount }} / {{ totalKeyPoints }} ključnih tačaka
         </span>
         <span *ngIf="isActive" class="polling-badge">
-          🔄 Auto-provera za {{ countdownSeconds }}s
+          <span class="icon icon-sm">refresh</span> Auto-provera za {{ countdownSeconds }}s
         </span>
       </div>
 
@@ -63,7 +65,7 @@
       <!-- Inline mini simulator -->
       <div *ngIf="isActive" class="simulator-sidebar">
         <div class="sim-header">
-          <span class="sim-title">📍 Moja pozicija</span>
+          <span class="sim-title"><span class="icon icon-sm">location_on</span> Moja pozicija</span>
           <span class="sim-subtitle">Klikni na mapu da pomeriš</span>
         </div>
         <div id="sim-mini-map" class="sim-mini-map"></div>
@@ -79,7 +81,8 @@
         </div>
         <p *ngIf="!currentSimPosition" class="no-pos">Nema postavljene pozicije</p>
         <button type="button" class="btn btn-check-now" (click)="manualCheck()" [disabled]="checkingNow">
-          {{ checkingNow ? '⏳ Provjera...' : '🔍 Provjeri odmah' }}
+          <span class="icon icon-sm">{{ checkingNow ? 'hourglass_top' : 'search' }}</span>
+          {{ checkingNow ? 'Provjera...' : 'Provjeri odmah' }}
         </button>
       </div>
 
@@ -91,16 +94,17 @@
 
     <!-- Status poruka -->
     <div *ngIf="lastCheckMessage" class="check-message" [class.reached]="lastReachedKeyPoint">
+      <span class="icon icon-sm">{{ lastReachedKeyPoint ? 'check_circle' : 'info' }}</span>
       {{ lastCheckMessage }}
     </div>
 
     <!-- Akcije -->
     <div *ngIf="isActive" class="action-buttons">
       <button type="button" class="btn btn-complete" (click)="completeTour()">
-        ✅ Završi turu
+        <span class="icon icon-sm">check_circle</span> Završi turu
       </button>
       <button type="button" class="btn btn-abandon" (click)="abandonTour()">
-        ⛔ Napusti turu
+        <span class="icon icon-sm">block</span> Napusti turu
       </button>
     </div>
 
@@ -112,7 +116,7 @@
         Pretraži ture
       </a>
       <a routerLink="/cart" class="btn btn-outline">
-        🛒 Korpa
+        <span class="icon icon-sm">shopping_cart</span> Korpa
       </a>
     </div>
 
@@ -122,7 +126,8 @@
       <div class="kp-list">
         <div *ngFor="let kp of keyPoints" class="kp-item" [class.kp-done]="isKeyPointCompleted(kp)">
           <div class="kp-number" [class.done]="isKeyPointCompleted(kp)">
-            {{ isKeyPointCompleted(kp) ? '✓' : kp.order }}
+            <span class="icon icon-sm" *ngIf="isKeyPointCompleted(kp)">check</span>
+            <ng-container *ngIf="!isKeyPointCompleted(kp)">{{ kp.order }}</ng-container>
           </div>
           <div class="kp-info">
             <strong>{{ kp.name }}</strong>
@@ -131,9 +136,9 @@
               Posječeno: {{ getCompletedTime(kp) | date:'HH:mm:ss' }}
             </small>
           </div>
-          <span *ngIf="isKeyPointCompleted(kp)" class="kp-reached-badge">✅ Posećeno</span>
+          <span *ngIf="isKeyPointCompleted(kp)" class="kp-reached-badge"><span class="icon icon-sm">check_circle</span> Posećeno</span>
           <button *ngIf="isActive && !isKeyPointCompleted(kp)" type="button" class="btn-navigate" (click)="focusKeyPoint(kp)">
-            🗺
+            <span class="icon icon-sm">map</span>
           </button>
         </div>
       </div>

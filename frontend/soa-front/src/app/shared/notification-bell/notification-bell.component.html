@@ -1,6 +1,6 @@
 <div class="bell-wrapper">
   <button type="button" class="bell-btn" (click)="toggle()">
-    🔔
+    <span class="icon">notifications</span>
     <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
   </button>
 
@@ -21,7 +21,7 @@
       >
         <p>
           {{ n.message }}
-          <span class="delivery-failed" *ngIf="n.deliveryStatus === 'failed'" title="Isporuka nije uspela">⚠</span>
+          <span class="delivery-failed icon" *ngIf="n.deliveryStatus === 'failed'" title="Isporuka nije uspela">error</span>
         </p>
         <span class="time">{{ n.createdAt }}</span>
       </div>

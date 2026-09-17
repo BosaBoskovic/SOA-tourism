@@ -1,29 +1,32 @@
 /* ════════════════════════════════════════════════════════════
    BLOG COMPONENT STYLES
-   Paleta: Terracotta (#C1440E), Warm Cream (#FAF7F2), Slate (#2D3142)
-   Font: 'Playfair Display' naslov + 'Source Serif 4' tijelo
+   Aliased onto the app-wide Coral & Navy design tokens (styles.css)
+   so this page shares the same palette/radius/shadow language as
+   the rest of the app instead of its own bespoke theme.
    ════════════════════════════════════════════════════════════ */
 
-   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,400&display=swap');
+   /* Angular scopes component styles, so a plain `:root { }` rule here
+      never actually matches (<html> is outside this component's
+      template) and every var() below would silently fail. These are
+      defined on .blog-root instead - the template's real top-level
+      element - so they inherit correctly to everything inside it. */
 
-   :root {
-     --terra: #C1440E;
-     --terra-light: #E8856A;
-     --terra-pale: #FBF0EB;
-     --cream: #FAF7F2;
-     --cream-dark: #F0EBE3;
-     --ink: #2D3142;
-     --ink-mid: #5A5E78;
-     --ink-light: #9497AB;
-     --border: #E4DFD8;
-     --white: #FFFFFF;
-     --success: #2D7A4F;
-     --radius: 12px;
-     --radius-sm: 6px;
-   }
-   
    .blog-root {
-     font-family: 'Source Serif 4', Georgia, serif;
+     --terra: var(--color-primary);
+     --terra-light: #FF8A6E;
+     --terra-pale: var(--color-primary-light);
+     --cream: var(--color-background);
+     --cream-dark: var(--color-border);
+     --ink: var(--color-navy);
+     --ink-mid: var(--color-text-secondary);
+     --ink-light: var(--color-text-muted);
+     --border: var(--color-border);
+     --white: var(--color-surface);
+     --success: var(--color-success);
+     --radius: var(--radius-lg);
+     --radius-sm: var(--radius-sm);
+
+     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
      background: var(--cream);
      min-height: 100vh;
      color: var(--ink);
@@ -77,7 +80,6 @@
    }
    
    .header-tag {
-     font-family: 'Source Serif 4', serif;
      font-size: 10px;
      font-weight: 600;
      letter-spacing: 0.15em;
@@ -87,7 +89,6 @@
    }
    
    .header-title h1 {
-     font-family: 'Playfair Display', Georgia, serif;
      font-size: 22px;
      font-weight: 700;
      margin: 0;
@@ -105,7 +106,6 @@
      border-radius: var(--radius-sm);
      padding: 0 16px;
      height: 36px;
-     font-family: 'Source Serif 4', serif;
      font-size: 14px;
      font-weight: 600;
      cursor: pointer;
@@ -114,7 +114,7 @@
    }
    
    .btn-new:hover {
-     background: #A8390C;
+     background: var(--color-primary-dark);
    }
    
    /* ─── LAYOUT ──────────────────────────────────────────────── */
@@ -147,7 +147,6 @@
    }
    
    .empty-state h3 {
-     font-family: 'Playfair Display', serif;
      font-size: 22px;
      font-weight: 700;
      color: var(--ink);
@@ -294,7 +293,6 @@
    }
    
    .card-title {
-     font-family: 'Playfair Display', serif;
      font-size: 20px;
      font-weight: 700;
      line-height: 1.3;
@@ -337,6 +335,9 @@
    
    .read-more {
      margin-left: auto;
+     display: inline-flex;
+     align-items: center;
+     gap: 4px;
      font-size: 13px;
      font-weight: 600;
      color: var(--terra);
@@ -353,11 +354,13 @@
    }
 
    .btn-page {
+     display: inline-flex;
+     align-items: center;
+     gap: 6px;
      background: var(--white);
      border: 1.5px solid var(--border);
      border-radius: 20px;
      padding: 6px 16px;
-     font-family: 'Source Serif 4', serif;
      font-size: 13px;
      font-weight: 600;
      cursor: pointer;
@@ -393,7 +396,6 @@
      background: none;
      border: none;
      color: var(--terra);
-     font-family: 'Source Serif 4', serif;
      font-size: 14px;
      font-weight: 600;
      cursor: pointer;
@@ -485,7 +487,6 @@
      border: 1.5px solid var(--border);
      border-radius: 24px;
      padding: 6px 16px;
-     font-family: 'Source Serif 4', serif;
      font-size: 14px;
      font-weight: 600;
      cursor: pointer;
@@ -520,7 +521,6 @@
      border: 1.5px solid var(--border);
      border-radius: 20px;
      padding: 6px 14px;
-     font-family: 'Source Serif 4', serif;
      font-size: 13px;
      font-weight: 600;
      cursor: pointer;
@@ -532,17 +532,16 @@
    }
 
    .btn-delete-post {
-     color: #C0392B;
+     color: var(--color-error);
    }
 
    .btn-delete-post:hover {
-     border-color: #C0392B;
+     border-color: var(--color-error);
      background: #FDEDEC;
    }
 
    /* Title */
    .detail-title {
-     font-family: 'Playfair Display', serif;
      font-size: 38px;
      font-weight: 700;
      line-height: 1.2;
@@ -564,7 +563,6 @@
    .detail-content h2,
    .detail-content h3,
    .detail-content h4 {
-     font-family: 'Playfair Display', serif;
      color: var(--ink);
      margin: 1.5em 0 0.5em;
    }
@@ -624,7 +622,6 @@
    .comments-section { }
    
    .comments-heading {
-     font-family: 'Playfair Display', serif;
      font-size: 22px;
      font-weight: 700;
      color: var(--ink);
@@ -637,7 +634,6 @@
    .comments-count {
      background: var(--terra-pale);
      color: var(--terra);
-     font-family: 'Source Serif 4', serif;
      font-size: 13px;
      font-weight: 700;
      border-radius: 20px;
@@ -660,7 +656,6 @@
      border: 1.5px solid var(--border);
      border-radius: var(--radius);
      padding: 10px 14px;
-     font-family: 'Source Serif 4', serif;
      font-size: 15px;
      line-height: 1.5;
      color: var(--ink);
@@ -694,14 +689,13 @@
      border: none;
      border-radius: var(--radius-sm);
      padding: 7px 18px;
-     font-family: 'Source Serif 4', serif;
      font-size: 14px;
      font-weight: 600;
      cursor: pointer;
      transition: background 0.2s;
    }
    
-   .btn-submit:hover:not(:disabled) { background: #A8390C; }
+   .btn-submit:hover:not(:disabled) { background: var(--color-primary-dark); }
    .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; }
    .btn-submit.small { padding: 5px 14px; font-size: 13px; }
    
@@ -710,7 +704,6 @@
      border: 1.5px solid var(--border);
      border-radius: var(--radius-sm);
      padding: 6px 14px;
-     font-family: 'Source Serif 4', serif;
      font-size: 14px;
      color: var(--ink-mid);
      cursor: pointer;
@@ -788,7 +781,6 @@
      font-size: 12px;
      color: var(--terra);
      cursor: pointer;
-     font-family: 'Source Serif 4', serif;
      font-weight: 600;
    }
 
@@ -798,7 +790,7 @@
    }
 
    .btn-delete-comment {
-     color: #C0392B;
+     color: var(--color-error);
    }
 
    .edit-textarea {
@@ -807,7 +799,7 @@
    
    .comment-error {
      margin-top: 1rem;
-     color: #C0392B;
+     color: var(--color-error);
      font-size: 14px;
    }
    
@@ -858,7 +850,7 @@
      justify-content: space-between;
      padding: 1.25rem 1.5rem;
      border-bottom: 1.5px solid var(--border);
-     background: #faf7f2;
+     background: var(--cream);
    }
 
    .modal-header-left {
@@ -880,7 +872,6 @@
    }
    
    .modal-header h2 {
-     font-family: 'Playfair Display', serif;
      font-size: 20px;
      font-weight: 700;
      margin: 0;
@@ -981,7 +972,6 @@
      border: 1.5px solid var(--border);
      border-radius: var(--radius-sm);
      padding: 10px 14px;
-     font-family: 'Source Serif 4', serif;
      font-size: 15px;
      color: var(--ink);
      background: var(--cream);
@@ -997,7 +987,6 @@
      border: 1.5px solid var(--border);
      border-radius: var(--radius-sm);
      padding: 10px 12px;
-     font-family: 'Source Serif 4', serif;
      font-size: 14px;
      line-height: 1.6;
      color: var(--ink);
@@ -1031,7 +1020,6 @@
      border: 1.5px solid var(--border);
      border-bottom: none;
      padding: 6px 16px;
-     font-family: 'Source Serif 4', serif;
      font-size: 13px;
      color: var(--ink-light);
      cursor: pointer;
@@ -1069,7 +1057,6 @@
    }
    
    .md-preview h1, .md-preview h2, .md-preview h3 {
-     font-family: 'Playfair Display', serif;
      color: var(--ink);
    }
    
@@ -1103,7 +1090,6 @@
      border: none;
      border-radius: var(--radius-sm);
      padding: 8px 22px;
-     font-family: 'Source Serif 4', serif;
      font-size: 15px;
      font-weight: 700;
      cursor: pointer;
@@ -1113,7 +1099,7 @@
      gap: 6px;
    }
    
-   .btn-primary:hover:not(:disabled) { background: #A8390C; }
+   .btn-primary:hover:not(:disabled) { background: var(--color-primary-dark); }
    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
 
    .btn-spinner {
@@ -1127,7 +1113,7 @@
    }
    
    .form-error {
-     color: #C0392B;
+     color: var(--color-error);
      font-size: 14px;
      background: #FEF0F0;
      border: 1px solid #F5C6CB;

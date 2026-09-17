@@ -1,7 +1,7 @@
 <nav class="navbar">
   <div class="navbar-content">
     <a class="brand" routerLink="/dashboard">
-      <div class="brand-icon">✦</div>
+      <div class="brand-icon"><span class="icon">travel_explore</span></div>
       <div>
         <h1>Tourism App</h1>
         <span>Explore. Create. Manage.</span>
@@ -11,85 +11,99 @@
     <div class="menu-wrapper" *ngIf="currentUser">
       <app-notification-bell></app-notification-bell>
 
-      <div class="user-box">
-        <span class="username">{{ currentUser.username }}</span>
-
-        <button class="dropdown-toggle" type="button" (click)="toggleMenu()">
-          ☰
-        </button>
-      </div>
-
-      <div class="dropdown-menu" [class.show]="menuOpen">
-        <a
-          routerLink="/profile"
-          *ngIf="currentUser.role === 'tourist' || currentUser.role === 'guide'"
-          (click)="menuOpen = false"
-        >
-          Profil
-        </a>
-
-        <a
-          routerLink="/users/search"
-          *ngIf="currentUser.role === 'tourist' || currentUser.role === 'guide'"
-          (click)="menuOpen = false"
-        >
-          Pretrazi korisnike
-        </a>
-
-        <a
-          routerLink="/tours"
-          *ngIf="currentUser.role === 'guide'"
-          (click)="menuOpen = false"
-        >
-          Moje ture
-        </a>
-
-        <a
-          routerLink="/tours"
-          *ngIf="currentUser.role === 'tourist'"
-          (click)="menuOpen = false"
-        >
-          Pretrazi ture
-        </a>
-
-        <a
-          routerLink="/cart"
-          *ngIf="currentUser.role === 'tourist'"
-          (click)="menuOpen = false"
-          class="cart-link"
-        >
-          Korpa
-          <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
-        </a>
-
-        <a
-          routerLink="/my-executions"
-          *ngIf="currentUser.role === 'tourist'"
-          (click)="menuOpen = false"
-        >
-          Istorija tura
-        </a>
-
-        <a routerLink="/position-simulator" *ngIf="currentUser?.role === 'tourist'">
-          Trenutna lokacija
-        </a>
-
-        <a routerLink="/encounters" (click)="menuOpen = false">
-          Izazovi
-        </a>
-
-        <a routerLink="/blog" (click)="menuOpen = false">
-          Blog
-        </a>
-
-        <a routerLink="/admin" *ngIf="currentUser.role === 'admin'" (click)="menuOpen = false">
-          Administracija
-        </a>
-
-        <button type="button" (click)="logout()">
-          Odjava
-        </button>
-      </div>
+      <button class="menu-trigger" type="button" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen">
+        <span class="menu-trigger-avatar">{{ currentUser.username?.charAt(0)?.toUpperCase() }}</span>
+        <span class="menu-trigger-name">{{ currentUser.username }}</span>
+        <span *ngIf="cartItemCount > 0" class="menu-trigger-badge">{{ cartItemCount }}</span>
+        <span class="menu-trigger-icon icon">menu</span>
+      </button>
     </div>
   </div>
 </nav>
+
+<div class="sidebar-backdrop" [class.show]="menuOpen" (click)="toggleMenu()"></div>
+
+<aside class="sidebar" [class.show]="menuOpen" *ngIf="currentUser">
+  <div class="sidebar-header">
+    <span class="sidebar-avatar">{{ currentUser.username?.charAt(0)?.toUpperCase() }}</span>
+    <div class="sidebar-identity">
+      <strong>{{ currentUser.username }}</strong>
+      <span class="sidebar-role">{{ currentUser.role }}</span>
+    </div>
+    <button class="sidebar-close" type="button" (click)="toggleMenu()" aria-label="Zatvori meni"><span class="icon">close</span></button>
+  </div>
+
+  <nav class="sidebar-links">
+    <a
+      routerLink="/profile"
+      *ngIf="currentUser.role === 'tourist' || currentUser.role === 'guide'"
+      (click)="menuOpen = false"
+    >
+      <span class="icon">person</span> Profil
+    </a>
+
+    <a
+      routerLink="/users/search"
+      *ngIf="currentUser.role === 'tourist' || currentUser.role === 'guide'"
+      (click)="menuOpen = false"
+    >
+      <span class="icon">search</span> Pretraži korisnike
+    </a>
+
+    <a
+      routerLink="/tours"
+      *ngIf="currentUser.role === 'guide'"
+      (click)="menuOpen = false"
+    >
+      <span class="icon">explore</span> Moje ture
+    </a>
+
+    <a
+      routerLink="/tours"
+      *ngIf="currentUser.role === 'tourist'"
+      (click)="menuOpen = false"
+    >
+      <span class="icon">explore</span> Pretraži ture
+    </a>
+
+    <a
+      routerLink="/cart"
+      *ngIf="currentUser.role === 'tourist'"
+      (click)="menuOpen = false"
+      class="cart-link"
+    >
+      <span class="icon">shopping_cart</span> Korpa
+      <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+    </a>
+
+    <a
+      routerLink="/my-executions"
+      *ngIf="currentUser.role === 'tourist'"
+      (click)="menuOpen = false"
+    >
+      <span class="icon">hiking</span> Istorija tura
+    </a>
+
+    <a routerLink="/position-simulator" *ngIf="currentUser.role === 'tourist'" (click)="menuOpen = false">
+      <span class="icon">location_on</span> Trenutna lokacija
+    </a>
+
+    <div class="sidebar-divider"></div>
+
+    <a routerLink="/encounters" (click)="menuOpen = false">
+      <span class="icon">emoji_events</span> Izazovi
+    </a>
+
+    <a routerLink="/blog" (click)="menuOpen = false">
+      <span class="icon">edit_note</span> Blog
+    </a>
+
+    <a routerLink="/admin" *ngIf="currentUser.role === 'admin'" (click)="menuOpen = false">
+      <span class="icon">admin_panel_settings</span> Administracija
+    </a>
+  </nav>
+
+  <button type="button" class="sidebar-logout" (click)="logout()">
+    <span class="icon">logout</span> Odjava
+  </button>
+</aside>

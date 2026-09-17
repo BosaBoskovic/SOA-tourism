@@ -8,20 +8,256 @@
  * DOM from app-root to every routed page) but meant a template file was
  * the single source of truth for global design tokens, and a plain
  * global stylesheet couldn't see them before app-root ever mounted.
- * Moved here as the one canonical definition - values unchanged.
+ * Moved here as the one canonical definition.
+ *
+ * Palette: "Coral & Navy" - warm coral primary (CTAs, prices, active
+ * states), existing navy for headings, warm off-white surfaces. Radius
+ * and shadow scales + the shared component classes below exist so
+ * individual components stop reinventing their own .btn/.card/.badge
+ * rules with slightly different values.
  */
 :root {
-  --color-primary: #4DA8DA;
-  --color-secondary: #66D2A0;
+  --color-primary: #FF5A3C;
+  --color-primary-dark: #E14526;
+  --color-primary-light: #FFE4DB;
+  --color-secondary: #2CA772;
+  --color-secondary-light: #E1F5EC;
   --color-accent: #FFB703;
-  --color-background: #F7FAFC;
+  --color-navy: #17324D;
+  --color-background: #FFF8F4;
   --color-surface: #FFFFFF;
-  --color-border: #E2E8F0;
+  --color-border: #F1E4DC;
   --color-text-primary: #1A202C;
-  --color-text-secondary: #4A5568;
+  --color-text-secondary: #6B7280;
   --color-text-muted: #A0AEC0;
-  --color-success: #48BB78;
+  --color-success: #2CA772;
   --color-warning: #F6AD55;
-  --color-error: #F56565;
-  --color-info: #63B3ED;
+  --color-error: #E5484D;
+  --color-info: #4DA8DA;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 4px 14px rgba(23, 50, 77, 0.07);
+  --shadow-md: 0 12px 30px rgba(23, 50, 77, 0.10);
+  --shadow-lg: 0 26px 60px rgba(23, 50, 77, 0.16);
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+/* ── Icons ─────────────────────────────────────────────────────
+   Material Symbols (Outlined), loaded in index.html. Usage:
+   <span class="icon">notifications</span> - the element's text
+   content is the icon's name, rendered as a glyph via font ligature.
+   Replaces the emoji this app used to sprinkle through every page. */
+.icon {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 1.2em;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  vertical-align: -0.2em;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
+}
+
+.icon-sm { font-size: 1em; }
+.icon-lg { font-size: 1.6em; }
+.icon-xl { font-size: 2.2em; }
+.icon-fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+/* ── Shared layout primitives ─────────────────────────────────────
+   Used by nearly every routed page. Keeping one definition here means
+   a page's own stylesheet only needs its page-specific layout rules. */
+.page-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  color: var(--color-navy);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1.3rem;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid transparent;
+  font-weight: 700;
+  font-size: 0.88rem;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(255, 90, 60, 0.28);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--color-primary-light);
+}
+
+.btn-secondary {
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: #fff;
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #FFF1F1;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* ── Form controls ─────────────────────────────────────────────── */
+.form-control {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 90, 60, 0.14);
+}
+
+/* ── Badges & tags ─────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-draft { background: #FEF3C7; color: #92400E; }
+.badge-published { background: var(--color-secondary-light); color: #065F46; }
+.badge-archived { background: #F3F4F6; color: #6B7280; }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  border-radius: var(--radius-pill);
+  padding: 0.2rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ── Alerts ────────────────────────────────────────────────────── */
+.alert, .alert-error, .alert-success {
+  display: block;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+
+.alert-error {
+  background: #FFF1F1;
+  color: #B3261E;
+  border: 1px solid #F8C9C9;
+}
+
+.alert-success {
+  background: var(--color-secondary-light);
+  color: #065F46;
+  border: 1px solid #A7E6C6;
+}
+
+/* Small inline error text (distinct from the boxed .alert-error) */
+.error {
+  color: var(--color-error);
+  font-size: 0.9rem;
 }

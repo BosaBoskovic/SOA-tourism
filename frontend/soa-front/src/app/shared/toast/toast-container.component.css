@@ -11,25 +11,25 @@
 
 .toast {
   padding: 0.85rem 1.1rem;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   color: white;
   font-weight: 600;
   font-size: 0.92rem;
-  box-shadow: 0 12px 30px rgba(23, 50, 77, 0.22);
+  box-shadow: var(--shadow-md);
   cursor: pointer;
   animation: toast-in 0.2s ease;
 }
 
 .toast-success {
-  background: #2ca772;
+  background: var(--color-secondary);
 }
 
 .toast-error {
-  background: #e5484d;
+  background: var(--color-error);
 }
 
 .toast-info {
-  background: #17324d;
+  background: var(--color-navy);
 }
 
 @keyframes toast-in {

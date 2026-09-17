@@ -94,7 +94,10 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 {{ item.blog.comments.length }}
               </span>
-              <span class="read-more">Čitaj više →</span>
+              <span class="read-more">
+                Čitaj više
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </span>
             </div>
           </div>
         </article>
@@ -102,9 +105,15 @@
 
       <!-- PAGINATION -->
       <div class="pagination" *ngIf="!isLoading && !error && !selectedBlog && totalPages > 1">
-        <button class="btn-page" (click)="goToPage(page - 1)" [disabled]="page === 0">← Prethodna</button>
+        <button class="btn-page" (click)="goToPage(page - 1)" [disabled]="page === 0">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Prethodna
+        </button>
         <span class="page-info">Strana {{ page + 1 }} od {{ totalPages }} ({{ totalElements }} blogova)</span>
-        <button class="btn-page" (click)="goToPage(page + 1)" [disabled]="page + 1 >= totalPages">Sljedeća →</button>
+        <button class="btn-page" (click)="goToPage(page + 1)" [disabled]="page + 1 >= totalPages">
+          Sljedeća
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
       </div>
 
       <!-- ═══════════════════════════════════════════════════════ BLOG DETAIL -->
@@ -113,7 +122,8 @@
   
           <!-- Back to list -->
           <button class="back-to-list" (click)="closeBlog()">
-            ← Svi blogovi
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            Svi blogovi
           </button>
   
           <!-- Hero images -->

@@ -7,17 +7,23 @@
 .back-link {
   display: inline-block;
   margin-bottom: 1rem;
-  color: var(--color-text-secondary);
+  color: var(--color-primary);
+  font-weight: 600;
   text-decoration: none;
 }
 
 .profile-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
   padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
 }
+
+.profile-card h2 { color: var(--color-navy); }
+
+.profile-view { text-align: center; }
+.profile-view h3 { color: var(--color-navy); margin-bottom: 0.1rem; }
 
 .profile-img {
   width: 96px;
@@ -26,13 +32,14 @@
   object-fit: cover;
   display: block;
   margin: 0 auto 1rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .profile-img-placeholder {
   width: 96px;
   height: 96px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   color: white;
   font-size: 2.5rem;
   display: flex;
@@ -49,10 +56,11 @@
 .role-pill {
   display: inline-block;
   padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
   font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 0.6rem;
 }
@@ -64,6 +72,7 @@
 
 .bio {
   margin-top: 0.5rem;
+  color: var(--color-text-primary);
 }
 
 .actions {
@@ -71,35 +80,7 @@
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
-}
-
-.btn {
-  padding: 0.6rem 1.25rem;
-  border: none;
-  border-radius: 0.4rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.btn-primary {
-  background: var(--color-primary);
-  color: white;
-}
-
-.btn-secondary {
-  background: var(--color-border);
-  color: var(--color-text-primary);
-}
-
-.btn-outline {
-  background: transparent;
-  border: 1px solid var(--color-primary);
-  color: var(--color-primary);
-}
-
-.alert-error {
-  color: var(--color-error);
+  justify-content: center;
 }
 
 .follow-lists {
@@ -120,7 +101,7 @@
   padding: 0.5rem;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;

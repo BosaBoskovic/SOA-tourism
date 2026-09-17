@@ -49,11 +49,11 @@
     <div class="encounter-card" *ngFor="let e of encounters" [class.claimed]="e.claimed">
       <h3>{{ e.name }}</h3>
       <p class="description">{{ e.description }}</p>
-      <p class="reward" *ngIf="e.reward">🏆 {{ e.reward }}</p>
+      <p class="reward" *ngIf="e.reward"><span class="icon icon-sm">emoji_events</span> {{ e.reward }}</p>
       <p class="meta">Radijus: {{ e.radiusMeters }}m</p>
 
       <div class="card-actions">
-        <span class="badge-claimed" *ngIf="e.claimed">✓ Osvojeno {{ e.completedAt | date: 'short' }}</span>
+        <span class="badge-claimed" *ngIf="e.claimed"><span class="icon icon-sm">check_circle</span> Osvojeno {{ e.completedAt | date: 'short' }}</span>
         <button
           *ngIf="!e.claimed"
           class="btn btn-primary"

@@ -1,7 +1,7 @@
 <div class="page-container">
   <div class="page-header">
     <h2>Nova tura</h2>
-    <a routerLink="/tours" class="btn btn-outline">← Nazad</a>
+    <a routerLink="/tours" class="btn btn-outline"><span class="icon icon-sm">arrow_back</span> Nazad</a>
   </div>
 
   <div class="form-card" *ngIf="!createdTour">
@@ -75,10 +75,10 @@
           <div>
             <strong>{{ kp.order }}. {{ kp.name }}</strong>
             <p>{{ kp.description }}</p>
-            <small>📍 {{ kp.latitude | number:'1.4-4' }}, {{ kp.longitude | number:'1.4-4' }}</small>
+            <small><span class="icon icon-sm">location_on</span> {{ kp.latitude | number:'1.4-4' }}, {{ kp.longitude | number:'1.4-4' }}</small>
           </div>
           <div class="kp-actions">
-            <button class="btn-delete" type="button" (click)="deleteKeyPoint(kp)">🗑</button>
+            <button class="btn-delete" type="button" (click)="deleteKeyPoint(kp)"><span class="icon icon-sm">delete</span></button>
           </div>
         </div>
       </div>
@@ -86,7 +86,7 @@
       <div class="kp-form">
         <h4>Dodaj ključnu tačku</h4>
         <p *ngIf="selectedLatLng" class="selected-coords">
-          ✅ Lokacija: {{ selectedLatLng.lat | number:'1.4-4' }}, {{ selectedLatLng.lng | number:'1.4-4' }}
+          <span class="icon icon-sm">check_circle</span> Lokacija: {{ selectedLatLng.lat | number:'1.4-4' }}, {{ selectedLatLng.lng | number:'1.4-4' }}
         </p>
         <p *ngIf="!selectedLatLng" class="hint">Kliknite na mapu da odaberete lokaciju</p>
 

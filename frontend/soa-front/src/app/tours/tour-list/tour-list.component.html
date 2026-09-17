@@ -45,7 +45,7 @@
 
   <app-empty-state
     *ngIf="!loading && tours.length === 0"
-    icon="🏔"
+    icon="terrain"
     [title]="currentUser?.role === 'tourist' ? 'Nema dostupnih tura' : 'Još nema tura'"
     [message]="currentUser?.role === 'tourist'
       ? 'Trenutno nema dostupnih tura.'
@@ -53,34 +53,36 @@
   ></app-empty-state>
 
   <div class="tours-grid">
-    <div *ngFor="let tour of tours" class="tour-card">
-      <div class="tour-card-header">
-        <h3>{{ tour.name }}</h3>
+    <div *ngFor="let tour of tours" class="tour-card card card-hover">
+      <div class="tour-card-media" [class]="'tour-card-media--' + tour.difficulty">
         <span
           *ngIf="currentUser?.role === 'guide' && hasStatus(tour)"
-          class="badge"
+          class="badge tour-card-status"
           [class]="'badge-' + tour.status"
         >
           {{ tour.status }}
         </span>
       </div>
 
+      <div class="tour-card-body">
+      <h3 class="tour-card-title">{{ tour.name }}</h3>
+
       <p class="tour-desc">{{ tour.description }}</p>
 
       <div class="tour-meta">
-  <span>🏔 {{ difficultyLabel(tour.difficulty) }}</span>
-
-  <span class="price-tag">
-    💰 {{ tour.price }} coins
-  </span>
+  <span class="tag"><span class="icon icon-sm">terrain</span> {{ difficultyLabel(tour.difficulty) }}</span>
 
   <span *ngFor="let tag of tour.tags" class="tag">
     {{ tag }}
   </span>
 </div>
 
+<div class="tour-card-footer">
+  <span class="price-tag"><span class="icon icon-sm">payments</span> {{ tour.price }} coins</span>
+</div>
+
 <div class="tour-analytics" *ngIf="currentUser?.role === 'guide' && analytics[tour.id]">
-  📈 {{ analytics[tour.id].purchaseCount }} kupovina · 💰 {{ analytics[tour.id].revenue }} coins zarade
+  <span class="icon icon-sm">trending_up</span> {{ analytics[tour.id].purchaseCount }} kupovina · <span class="icon icon-sm">payments</span> {{ analytics[tour.id].revenue }} coins zarade
 </div>
 
       <div class="tour-actions">
@@ -129,7 +131,7 @@
           *ngIf="currentUser?.role === 'tourist' && isPurchased(tour)"
           class="badge badge-purchased"
         >
-          ✓ Kupljeno
+          <span class="icon icon-sm">check_circle</span> Kupljeno
         </span>
 
         <button
@@ -138,7 +140,7 @@
           class="btn btn-cart"
           (click)="addToCart(tour)"
         >
-          🛒 Dodaj u korpu
+          <span class="icon icon-sm">add_shopping_cart</span> Dodaj u korpu
         </button>
 
         <!-- Prikaz poruke za arhivirane ture -->
@@ -146,7 +148,7 @@
           *ngIf="currentUser?.role === 'tourist' && !isPurchased(tour) && tour.status === 'archived'"
           class="badge badge-archived"
         >
-          🔒 Arhivirana
+          <span class="icon icon-sm">lock</span> Arhivirana
         </span>
 
         <a
@@ -154,8 +156,9 @@
           routerLink="/cart"
           class="btn btn-in-cart"
         >
-          ✓ U korpi
+          <span class="icon icon-sm">check_circle</span> U korpi
         </a>
+      </div>
       </div>
     </div>
   </div>

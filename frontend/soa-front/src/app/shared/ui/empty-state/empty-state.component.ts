@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
   template: `
     <div class="app-empty-state">
-      <span class="app-empty-icon" *ngIf="icon">{{ icon }}</span>
+      <span class="app-empty-icon icon" *ngIf="icon">{{ icon }}</span>
       <h3 *ngIf="title">{{ title }}</h3>
       <p *ngIf="message">{{ message }}</p>
     </div>
@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
   styleUrl: './empty-state.component.css'
 })
 export class EmptyStateComponent {
-  @Input() icon = '📭';
+  @Input() icon = 'inbox';
   @Input() title = '';
   @Input() message = '';
 }

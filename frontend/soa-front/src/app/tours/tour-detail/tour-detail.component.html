@@ -5,40 +5,40 @@
   <div *ngIf="tour">
     <div class="tour-header">
       <div>
-        <a routerLink="/tours" class="back-link">← Moje ture</a>
+        <a routerLink="/tours" class="back-link"><span class="icon icon-sm">arrow_back</span> Moje ture</a>
         <h2>{{ tour.name }}</h2>
         <p class="tour-desc">{{ tour.description }}</p>
         <div class="tour-meta">
           <span *ngIf="hasStatus(tour)" class="badge" [class]="'badge-' + tour.status">{{ tour.status }}</span>
-          <span>🏔 {{ tour.difficulty }}</span>
+          <span><span class="icon icon-sm">terrain</span> {{ tour.difficulty }}</span>
           <span *ngFor="let tag of tour.tags" class="tag">{{ tag }}</span>
         </div>
 
         <!-- Dužina i trajanje - vidljivo svim korisnicima -->
         <div class="tour-info-row">
           <span *ngIf="tour.lengthKm && tour.lengthKm > 0" class="tour-info-badge">
-            📏 Dužina: <strong>{{ tour.lengthKm | number:'1.1-1' }} km</strong>
+            <span class="icon icon-sm">straighten</span> Dužina: <strong>{{ tour.lengthKm | number:'1.1-1' }} km</strong>
           </span>
           <ng-container *ngIf="durations.length > 0">
             <span *ngFor="let d of durations" class="tour-info-badge">
-              🕐 {{ transportLabel(d.transport) }}: <strong>{{ d.minutes }} min</strong>
+              <span class="icon icon-sm">schedule</span> {{ transportLabel(d.transport) }}: <strong>{{ d.minutes }} min</strong>
             </span>
           </ng-container>
           <span *ngIf="durations.length === 0 && isTourist()" class="tour-info-badge muted">
-            🕐 Trajanje nije definisano
+            <span class="icon icon-sm">schedule</span> Trajanje nije definisano
           </span>
         </div>
 
         <!-- Dugme za pokretanje ture - samo turistima koji su kupili turu -->
         <div *ngIf="isTourist() && tourPurchased" class="start-tour-section">
           <a [routerLink]="['/tours', tour.id, 'execute']" class="btn btn-start-tour">
-            ▶ Pokreni turu
+            <span class="icon icon-sm">play_arrow</span> Pokreni turu
           </a>
           <p class="start-hint">Provjerite da ste postavili lokaciju u <a routerLink="/position-simulator">Position Simulatoru</a> prije pokretanja.</p>
         </div>
 
         <div *ngIf="isTourist() && !tourPurchased" class="not-purchased-hint">
-          🔒 Kupite turu da biste je pokrenuli
+          <span class="icon icon-sm">lock</span> Kupite turu da biste je pokrenuli
           <a routerLink="/cart" class="btn btn-outline btn-sm">Idi na korpu</a>
         </div>
       </div>
@@ -77,7 +77,7 @@
             <p>{{ d.minutes }} min</p>
           </div>
           <div class="kp-actions" *ngIf="canEditKeyPoints()">
-            <button class="btn-delete" type="button" (click)="removeDuration(d.transport)">🗑</button>
+            <button class="btn-delete" type="button" (click)="removeDuration(d.transport)"><span class="icon icon-sm">delete</span></button>
           </div>
         </div>
       </div>
@@ -113,7 +113,7 @@
 
       <!-- Poruka turistima koji nisu kupili turu -->
       <div *ngIf="isTourist() && !tourPurchased" class="locked-keypoints-notice">
-        🔒 <strong>Prikazuje se samo prva ključna tačka.</strong>
+        <span class="icon icon-sm">lock</span> <strong>Prikazuje se samo prva ključna tačka.</strong>
         Kupite turu da biste vidjeli sve ključne tačke i pokrenuli turu.
       </div>
 
@@ -126,11 +126,11 @@
           <div>
             <strong>{{ kp.order }}. {{ kp.name }}</strong>
             <p>{{ kp.description }}</p>
-            <small>📍 {{ kp.latitude | number:'1.4-4' }}, {{ kp.longitude | number:'1.4-4' }}</small>
+            <small><span class="icon icon-sm">location_on</span> {{ kp.latitude | number:'1.4-4' }}, {{ kp.longitude | number:'1.4-4' }}</small>
           </div>
           <div class="kp-actions" *ngIf="canEditKeyPoints()">
-  <button class="btn-edit" type="button" (click)="startEditKeyPoint(kp)">✏️</button>
-  <button class="btn-delete" type="button" (click)="deleteKeyPoint(kp)">🗑</button>
+  <button class="btn-edit" type="button" (click)="startEditKeyPoint(kp)"><span class="icon icon-sm">edit</span></button>
+  <button class="btn-delete" type="button" (click)="deleteKeyPoint(kp)"><span class="icon icon-sm">delete</span></button>
 </div>
         </div>
       </div>
@@ -138,7 +138,7 @@
       <!-- Prikaz zaključanih tačaka za nekupljene ture -->
       <div *ngIf="isTourist() && !tourPurchased" class="locked-keypoints-placeholder">
         <div class="kp-item locked">
-          🔒 <span>Ostale ključne tačke su skrivene — kupite turu da ih otkrijete</span>
+          <span class="icon icon-sm">lock</span> <span>Ostale ključne tačke su skrivene — kupite turu da ih otkrijete</span>
         </div>
       </div>
 
@@ -146,7 +146,7 @@
       <div *ngIf="canEditKeyPoints()" class="kp-form">
         <h4>{{ editingKeyPoint ? 'Izmeni ključnu tačku' : 'Dodaj ključnu tačku' }}</h4>
         <p *ngIf="selectedLatLng" class="selected-coords">
-          ✅ Lokacija: {{ selectedLatLng.lat | number:'1.4-4' }}, {{ selectedLatLng.lng | number:'1.4-4' }}
+          <span class="icon icon-sm">check_circle</span> Lokacija: {{ selectedLatLng.lat | number:'1.4-4' }}, {{ selectedLatLng.lng | number:'1.4-4' }}
         </p>
         <p *ngIf="!selectedLatLng" class="hint">Kliknite na mapu da odaberete lokaciju</p>
 
@@ -201,7 +201,7 @@
     </div>
 
     <span class="stars">
-      <span *ngFor="let s of starsArray(review.rating)">⭐</span>
+      <span class="icon icon-fill" *ngFor="let s of starsArray(review.rating)">star</span>
       <span class="rating-text">({{ review.rating }}/5)</span>
     </span>
 

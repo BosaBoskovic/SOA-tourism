@@ -36,7 +36,7 @@
         </td>
         <td class="actions-cell">
           <button
-            class="btn-block"
+            class="btn-suspend"
             *ngIf="!account.isBlocked"
             [disabled]="account.role?.toLowerCase() === 'admin'"
             (click)="blockAccount(account)"
@@ -63,20 +63,20 @@
   </table>
 
   <div class="pagination" *ngIf="filteredAccounts.length > pageSize">
-    <button class="btn-page" (click)="goToPage(page - 1)" [disabled]="page === 0">← Prethodna</button>
+    <button class="btn-page" (click)="goToPage(page - 1)" [disabled]="page === 0"><span class="icon icon-sm">arrow_back</span> Prethodna</button>
     <span class="page-info">Strana {{ page + 1 }} od {{ totalPages }} ({{ filteredAccounts.length }} naloga)</span>
-    <button class="btn-page" (click)="goToPage(page + 1)" [disabled]="page + 1 >= totalPages">Sljedeća →</button>
+    <button class="btn-page" (click)="goToPage(page + 1)" [disabled]="page + 1 >= totalPages">Sljedeća <span class="icon icon-sm">arrow_forward</span></button>
   </div>
 
   <app-empty-state
     *ngIf="!loading && accounts.length === 0"
-    icon="👥"
+    icon="group"
     title="Nema naloga"
     message="Nema naloga za prikaz."
   ></app-empty-state>
   <app-empty-state
     *ngIf="!loading && accounts.length > 0 && filteredAccounts.length === 0"
-    icon="🔍"
+    icon="search_off"
     title="Nema rezultata"
     message="Nema naloga koji odgovaraju pretrazi."
   ></app-empty-state>

@@ -1,29 +1,8 @@
-.page-container {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.page-header h2 {
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.alert-error {
-  color: var(--color-error);
-}
-
 .create-form {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   padding: 1.25rem;
   margin-bottom: 1.5rem;
   display: flex;
@@ -41,15 +20,8 @@
   display: block;
   margin-bottom: 0.3rem;
   font-size: 0.85rem;
-  color: var(--color-text-secondary);
+  color: var(--color-navy);
   font-weight: 600;
-}
-
-.form-control {
-  width: 100%;
-  padding: 0.6rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
 }
 
 .encounters-grid {
@@ -61,18 +33,25 @@
 .encounter-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   padding: 1.25rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.encounter-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 
 .encounter-card.claimed {
-  border-color: var(--color-success);
-  background: rgba(72, 187, 120, 0.05);
+  border-color: var(--color-secondary);
+  background: var(--color-secondary-light);
 }
 
 .encounter-card h3 {
   margin: 0 0 0.5rem;
-  color: var(--color-text-primary);
+  color: var(--color-navy);
 }
 
 .description {
@@ -83,7 +62,7 @@
 
 .reward {
   font-weight: 700;
-  color: var(--color-accent, #b7791f);
+  color: #B7791F;
 }
 
 .meta {
@@ -103,33 +82,4 @@
   color: var(--color-success);
   font-weight: 700;
   font-size: 0.85rem;
-}
-
-.btn {
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.55rem 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 0.88rem;
-}
-
-.btn-primary {
-  background: var(--color-primary);
-  color: white;
-}
-
-.btn-secondary {
-  background: var(--color-border);
-  color: var(--color-text-primary);
-}
-
-.btn-danger {
-  background: rgba(245, 101, 101, 0.12);
-  color: var(--color-error);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
